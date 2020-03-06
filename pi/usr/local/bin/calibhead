@@ -1,0 +1,66 @@
+#!/bin/bash
+# variables, directories, and arrays for calibration. This file is to be
+# SOURCED
+
+# The nomenclature here is a bit confusing. The high-level designator
+# for the things we control is the `channel'. which is associated
+# with the output channels for the Pi, (almost). We monitor
+# mercury and cadmium separately, but do not (cannot) CONTROL them
+# separately, since both are produced by one lamp. With each channel
+# is associated a BCM control port, the array chport. Note that
+# port 5 is repeated for both hg and cd. Also with each *lamp*
+# (channels 1-7) is associated a monitor A/D, whose ouput is in
+# volts, stored by various routines in the array adcval. The
+# ADC channel is the same as the control channel for the lamps.
+# Channel 8 is the fans, which are speed-controlled by PWM from
+# the Pi with the shellscript fans, which takes an argument
+# 0 to turn off the fans, or a value 10-99 to control the fan
+# speed. The relation is a bit nonlinear, falling below linear both
+# at the low end and at the high end. The continuum fan's tachometer
+# is converted to a voltage and is added to the continuum lamp's 
+# monitor signal, so we have an indication for the correct operation
+# of the continuum fan, which is a safety issue. Since ONLY the
+# continuum fan has a tachometer which is monitored, and at that
+# only when the lamp itself is off, this signal is a proxy for all 
+# the fans. Should have done this differently.
+
+
+#setup and export channel info
+# These arrays are 1-based, and have the name in element 0 for possible
+# convenience
+export chname=("chname" neon argon krypton xenon hg  cd cont fans)
+export chlabel=("chlabel" "Ne  " "Ar  " "Kr  " "Xe  " "Hg  " "Cd  " "Cont" "Fans")
+export chtime=("chtime" 0 0 0 0 0 0 0 0 )
+export chport=("chport" 26 22 25 27 23 23 17 24)
+export chval=("chval" 0 0 0 0 0 0 0 0 )
+export adcval=("adcval" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 )
+export adcthresh=("adcthresh" 0.7 0.7 0.5 0.35 0.7 0.3 2.5 )
+export adctarget=("adctarget" 0.92 1.13 1.13 0.67 0.52)
+
+#export parameters
+export fadcthresh=0.20    # fan speed signal threshold for being sure fans are running
+export hgcdfanspeed=20    # fan speed set during hgcd (and other gaslamps) run
+export hgcdfanthresh=0.35 # hgcd signal above which fans turn on
+export coolingtime=120    # time for fans on full after a session to equalize temps
+
+# Note that fans threshold, target is for the speed feedback at speed=50. 1s
+# and the thresholds and targets are for readings with the power-up sequence
+# xe, kr, ar, ne at each stage
+
+export GPIOINIT="GPIO variables init at `date` by `whoami`"
+echo $GPIOINIT>/tmp/gpioinit
+if [ `id -u` = 0 ]
+then
+    chown pfs:pfs /tmp/gpioinit
+fi
+
+# /sys/directories
+export pwmsysdir=/sys/class/pwm/pwmchip0/pwm0
+export gpiosysdir=/sys/class/gpio
+
+# log and control files
+export caliblog=/tmp/caliblog
+export readyfile=/tmp/calibready
+export runningfile=/tmp/calibrunning
+export testingfile=/tmp/calibtesting
+export coolingfile=/tmp/calibcooling

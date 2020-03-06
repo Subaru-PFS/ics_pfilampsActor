@@ -1,0 +1,10 @@
+#!/bin/bash
+# inits the various stat files and does a catstat
+echo "neon    init `udtstr`" > /tmp/_neonstat
+echo "argon   init `udtstr`" > /tmp/_argonstat
+echo "krypton init `udtstr`" > /tmp/_kryptonstat
+echo "xenon   init `udtstr`" > /tmp/_xenonstat
+echo "hgcd    init `udtstr`" > /tmp/_hgcdstat
+echo "cont    init `udtstr`" > /tmp/_contstat
+echo "fans    init `udtstr`" > /tmp/_fanstat
+_catstat

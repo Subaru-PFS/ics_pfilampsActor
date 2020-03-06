@@ -1,0 +1,11 @@
+#!/bin/bash
+# Creates testing file, which inhibits automatic cleanup by
+# calibmonitor. Starts 10 minute grace period (_testwait) in which one
+# can run testing scripts without worrying about the monitoring turning
+# things off. The grace period is renewed at each invocation
+
+
+pkill _testwait
+touch $testingfile
+echo "Entering engineering mode"
+_testwait &

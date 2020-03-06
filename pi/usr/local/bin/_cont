@@ -1,0 +1,32 @@
+#!/bin/bash
+
+
+    port=17
+    if [ "$1" = "" ]
+    then
+        echo "USAGE: _cont [on,off]"
+        exit
+    fi
+    if [ "$1" = "on" ] || [ "$1" = "ON" ]
+    then
+        val=1
+        echo "cont      on `udtstr`" > /tmp/_contstat
+        fans 50
+        sleep 2
+        if compare "`adcread 7` < 0.25" 
+        then
+            echo " Fan is not operating properly. I will not turn on lamp"
+        fi
+        echo "You must turn off the fans manually (_fans off) "
+    else
+        val=0
+        echo "cont     off `udtstr`" > /tmp/_contstat
+    fi
+    # do it
+    
+    _testing
+    echo $val > /sys/class/gpio/gpio$port/value
+    _catstat
+
+
+

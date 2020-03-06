@@ -1,0 +1,6 @@
+#!/bin/bash
+sleep 600
+echo "***********************************"
+echo "Your ten minutes for testing is up"
+echo "***********************************"
+rm -f $testingfile

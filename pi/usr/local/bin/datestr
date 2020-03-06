@@ -1,0 +1,3 @@
+#!/bin/bash
+# echos a string of the form ddmmyy
+/bin/date +%y%m%d

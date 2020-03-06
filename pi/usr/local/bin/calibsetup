@@ -1,0 +1,30 @@
+#!/bin/bash
+#
+# this sets up the engineering status file in /tmp/  
+_statinit
+if [ `id -u` = 0 ]
+then
+    chown pfs:pfs /tmp/*stat
+fi
+
+
+#!/bin/bash
+# variables, directories, and arrays for calibration
+#setup and export channel info
+export chname=("" neon argon krypton xenon hg  cd cont fans)
+export chlabel=("" "Ne  " "Ar  " "Kr  " "Xe  " "Hg  " "Cd  " "Cont" "Fans")
+export chport=("" 26 22 25 27 23 23 17 24)
+export adcchan=( "" 8 7 6 5 4 3 2 "" )
+export chval=("" 0 0 0 0 0 0 0 0 )
+export adcval=("" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 )
+
+export GPIOINIT="GPIO variables init at `date` by `whoami`"
+echo $GPIOINIT>/tmp/gpioinit
+if [ `id -u` = 0 ]
+then
+    chown pfs:pfs /tmp/gpioinit
+fi
+
+# /sys/directories
+export pwmsysdir=/sys/class/pwm/pwmchip0/pwm0
+export gpiosysdir=/sys/class/gpio

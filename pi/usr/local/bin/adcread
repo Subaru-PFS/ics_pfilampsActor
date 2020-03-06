@@ -1,0 +1,31 @@
+#!/bin/bash
+if [ "$1" = "" ]
+then
+    echo "USAGE: adcread element (lc, as in neon, argon, krypton, xenon, hg, cd, cont)"
+    echo "               or channel number (1-7 in the order on the above line)"
+    exit
+fi
+
+# NB!!!! the hardware adc channels are in the reverse order from the control 
+# channels!!; the map is below. The user does not need to know about the
+# hardware channels
+
+ch=$1
+case $ch in
+    neon)    port=8 ;;
+    argon)   port=7 ;;
+    krypton) port=6 ;;
+    xenon)   port=5 ;;
+    hg)      port=4 ;;
+    cd)      port=3 ;;
+    cont)    port=2 ;;
+    1) port=8 ;;
+    2) port=7 ;;
+    3) port=6 ;;
+    4) port=5 ;;
+    5) port=4 ;;
+    6) port=3 ;;
+    7) port=2 ;;
+    *) echo " No such channel as $ch"
+esac
+adcraw $port 2> /dev/null
