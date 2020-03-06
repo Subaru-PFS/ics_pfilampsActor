@@ -11,9 +11,9 @@ then
     exit
 fi
 
-mount /scr0
+qmount /scr0  # it should be mounted
 
-echo "This takes about 70 minutes. Please do NOT disturb the system while executing"
+echo "This takes about 7 minutes. Please do NOT disturb the system while executing"
 
 echo "Starting system refresh `udtstr` " | tee -a /scr0/refresh
 

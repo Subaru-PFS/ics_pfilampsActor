@@ -17,12 +17,10 @@ then
         echo "argon    off `udtstr`" > /tmp/_argonstat
     fi
     
-    _testing
     echo $val > /sys/class/gpio/gpio$port/value
     
     _catstat
     
-else
-    echo " You must be in engineering mode to issue this command"
 fi
+
 

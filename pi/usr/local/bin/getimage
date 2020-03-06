@@ -15,5 +15,4 @@ then
 
 image=$1
 
-mount /scr0 
 dd of=/dev/mmcblk0 if=$image bs=1M count=2000 status=progress oflag=sync ; sync

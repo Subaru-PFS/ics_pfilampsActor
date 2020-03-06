@@ -10,5 +10,5 @@ then
     exit
 fi
 
-mount /scr0 
+qmount /scr0  # it should be mounted
 dd if=/dev/mmcblk0 of=/scr0/pfscalib.`datestr`.img bs=1M count=2000 status=progress oflag=sync ; sync

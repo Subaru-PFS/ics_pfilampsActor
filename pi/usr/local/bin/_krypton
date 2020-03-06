@@ -2,7 +2,6 @@
 
 if _testtest
 then
-
     port=25
     if [ "$1" = "" ]
     then
@@ -18,12 +17,10 @@ then
         echo "krypton  off `udtstr`" > /tmp/_kryptonstat
     fi
     
-    _testing
     echo $val > /sys/class/gpio/gpio$port/value
     
     _catstat
 
-else
-    echo " You must be in engineering mode to issue this command"
 fi
+
 

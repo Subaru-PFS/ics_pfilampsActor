@@ -1,0 +1,12 @@
+For reasons I do not understand, you cannot say ./makecrosstalk; bash
+cannot find the executable file, even though it is present and
+is executable. You likewise cannot say /usr/local/bin/crosssrc/makecrosstalk;
+bash cannot find the source file. ?????
+
+you must say
+
+. makecrosstalk
+
+or
+
+source makecrosstalk

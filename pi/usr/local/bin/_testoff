@@ -1,0 +1,11 @@
+#!/bin/bash
+# Deletes testing file, and so enables automatic cleanup by
+# calibmonitor. Ends 10 minute grace period (_testwait) in which one
+# can run testing scripts without worrying about the monitoring turning
+# things off.
+
+
+pkill _testwait
+rm -f $testingfile
+echo "Leaving engineering mode"
+

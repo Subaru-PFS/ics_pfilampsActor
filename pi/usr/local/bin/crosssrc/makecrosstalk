@@ -1,0 +1,18 @@
+#!/bin/bash
+# builds the crosstalk executable
+# usage is crosstalk nesig arsig krsig xesig
+# output is ne ar kr xe  solved removing the crosstalk
+# it reads the file /usr/local/bin/crosstable.dat at each
+# invocation, which has the matrix linking the indidual input
+# quantities x[] , which this routine solves for, and the raw
+# read quantities b[].   
+# b=Ax
+
+
+if cc -o crosstalk lampcrosstalk.c
+then
+    mv crosstalk ..
+else
+    echo "Compiling error"
+fi
+

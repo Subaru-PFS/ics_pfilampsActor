@@ -2,6 +2,8 @@
 
 
 logfile=/tmp/calibsetup.log
+touch $logfile
+chown pfs:pfs $logfile
 
 #directories -- note that this script is run as root at bootup from
 # rc.local, so cannot export varibles. That is done by calibsetup,

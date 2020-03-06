@@ -1,0 +1,18 @@
+1.      0.      0.      0.
+.037    1.      .155    0.
+.057    .690    1.      0.
+.050    .595    1.52    1.
+.90     .94     .65     .48     .96     .34     3.3
+
+# This file contains expected lamp fluxes and ratios
+# The first four lines are the matrix which maps lamp
+# brightness in ADC units into ADC output in the four channels.
+# Thus a column in this matrix are ratios of the ouput
+# in each channel to the output in the index channel. If b
+# is the ADC vector and x is the vector whose only nonzero elemen
+# is the lamp brightness for that channel, and A is the matrix,
+#   b = Ax.
+# the routine crosstalk solves for x.
+#
+# the last row are the expected lamp brightnesses, and crosstalk
+# also normalizes its brightnesses to these values.

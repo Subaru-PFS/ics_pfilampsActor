@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
     port=17
     if [ "$1" = "" ]
     then
@@ -9,6 +8,11 @@
     fi
     if [ "$1" = "on" ] || [ "$1" = "ON" ]
     then
+        if ! _testtest 
+        then
+            exit
+        fi
+
         val=1
         echo "cont      on `udtstr`" > /tmp/_contstat
         fans 50
@@ -22,9 +26,8 @@
         val=0
         echo "cont     off `udtstr`" > /tmp/_contstat
     fi
+
     # do it
-    
-    _testing
     echo $val > /sys/class/gpio/gpio$port/value
     _catstat
 

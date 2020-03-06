@@ -12,15 +12,14 @@ then
     then
         val=1
         echo "neon      on `udtstr`" > /tmp/_neonstat
+        _fans 20
     else
         val=0
         echo "neon     off `udtstr`" > /tmp/_neonstat
     fi
     
-    _testing
     echo $val > /sys/class/gpio/gpio$port/value
     
     _catstat
-else
-    echo " You must be in engineering mode to issue this command"
 fi
+

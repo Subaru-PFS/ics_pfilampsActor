@@ -19,6 +19,6 @@ user=$1
 imagedir=${2%%/}
 imagename=pfscalibimage.`datestr`.img
 
-echo "Starting `udtstr`. Takes about 5 minutes with no output"
-dd if=/dev/mmcblk0 bs=1M count=2000 | ssh $user "dd of=$imagedir/$imagename"
+echo "Starting `udtstr` "
+dd if=/dev/mmcblk0 bs=1M count=2000 status=progress | ssh $user "dd of=$imagedir/$imagename; sync"
 echo "Finished `udtstr`"

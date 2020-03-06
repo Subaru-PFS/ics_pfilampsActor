@@ -51,18 +51,21 @@ pwmsysdir=/sys/class/pwm/pwmchip0/pwm0
     echo 0 > $pwmsysdir/enable
  } 
 
+echon () {  
+    if $QUIET
+    then
+        echo $* >> $caliblog
+    else
+        echo $* | tee -a $caliblog
+    fi
+}
+
+# $QUIET is exported in caliblamps; seems to be present
+
 # ******************************************************
 
 call=${0##*/}
-
-echo $call
-
-if [ "$call" = "_fans" ] && ! _testtest
-then
-    _testing
-#    echo "You must be in engineering mode to issue this engineering command"
-#    exit -1
-fi
+# echo $call
 
 if [ "$1" = "" ]
 then
@@ -79,13 +82,12 @@ fi
 
 if [ "$val" = "0" ] ||  [ "$val" = "off" ] || [ "$val" = "OFF" ]
 then
-    echo "Turning off fans"
+    echon "Turning off fans"
     echo 0 > /sys/class/gpio/gpio$port/value
     foff
     if [ "$call" = "_fans" ] # engineering call
     then
-echo "_fans $1"    
-        echo "fans      $val `udtstr`" > /tmp/_fanstat
+        echon "fans      $val `udtstr`" > /tmp/_fanstat
         _catstat 
     fi
     exit 0
@@ -96,10 +98,9 @@ then
     echo 1 > /sys/class/gpio/gpio$port/value
     if [ "$val" = "100" ] ; then val=99 ; fi
     fon $val
-    echo "Turning on fans, speed = $val"
+    echon "Turning on fans, speed = $val at `udtstr`"
     if [ "$call" = _fans ] # engineering call
     then
-echo "_fans $1"
         echo "fans      $val `udtstr`" > /tmp/_fanstat
         _testing
         _catstat 

@@ -40,7 +40,7 @@ export adctarget=("adctarget" 0.92 1.13 1.13 0.67 0.52)
 #export parameters
 export fadcthresh=0.20    # fan speed signal threshold for being sure fans are running
 export hgcdfanspeed=20    # fan speed set during hgcd (and other gaslamps) run
-export hgcdfanthresh=0.35 # hgcd signal above which fans turn on
+export hgcdfanthresh=0.35 # hgcd signal above which fans turn on and it is deemed `ready'
 export coolingtime=120    # time for fans on full after a session to equalize temps
 
 # Note that fans threshold, target is for the speed feedback at speed=50. 1s

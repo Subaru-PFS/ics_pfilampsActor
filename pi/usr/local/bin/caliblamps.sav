@@ -24,7 +24,7 @@ source /usr/local/bin/calibhead
 ##export parameters
 #export fadcthresh=0.20    # fan speed signal threshold for being sure fans are running
 #export hgcdfanspeed=20    # fan speed set during hgcd (and other gaslamps) run
-#export hgcdfanthresh=0.35 # hgcd signal above which fans turn on
+#export hgcdfanthresh=0.35 # hgcd signal above which fans turn on and it is deemed `ready'
 #export coolingtime=120    # time for fans on full after a session to equalize temps
 #
 ##Note that fans threshold, target is for the speed feedback at speed=50, 1s
@@ -51,6 +51,9 @@ compare () (
     exec awk "BEGIN{if (!($*)) exit(1)}"
 )
 export -f compare
+
+export QUIET=false
+
 
 # finds the Pi channel number (NOT the gpio port number) from the name
 chbyname () {
@@ -135,6 +138,26 @@ alloff () {
 # intervals not longer than 20 seconds for any call to lamps().
 # which can be used as an aliveness signal by a monitor process.
 
+quiet () {
+    elogit "Entering quiet mode `udtstr`"
+    export QUIET=true
+}
+
+chatty () {
+    export QUIET=false
+    elogit "Leaving quiet mode `udtstr`"
+}
+
+
+# if $QUIET, output echoes to logfile; if ! $QUIET, tees to screen
+echon () {
+    if $QUIET
+    then
+        echo $* >> $caliblog
+    else
+        echo $* | tee -a $caliblog
+    fi   
+}
 
 # logs a string
 logit () {
@@ -146,14 +169,24 @@ logitn () {
     echo -n $1 >> $caliblog
 }
 
-# tees to log and stdio
+# tees to log and stdio if ! $QUIET, just to log otherwise
 elogit () {
-    echo $1 | tee -a $caliblog
+    if $QUIET
+    then
+        echo $1 >> $caliblog
+    else
+        echo $1 | tee -a $caliblog
+    fi
 }
 
 # likewise, no lf
 elogitn () {
-    echo -n $1 | tee -a $caliblog
+    if $QUIET
+    then
+        echo -n $1 >> $caliblog
+    else
+        echo -n $1 | tee -a $caliblog
+    fi
 }
 
 # writes an allstat to the caliblog
@@ -163,16 +196,21 @@ logstat () {
 
 # AND to the terminal
 elogstat () {
-    allstat $1 | tee -a  $caliblog
+    if $QUIET
+    then
+        allstat $1 >> $caliblog
+    else
+        allstat $1 | tee -a  $caliblog
+    fi
 }
 
 # ****************** POSTCOOLING ****************************************
 # At the end of a run, the fans are turned on at 100 percent for a period
 # of $coolingtime seconds to bring the system to ambient temperature.
 
-coolit () {
+coolit () (
     fans 99
-    touch $coolingfile
+    echo $BASHPID > $coolingfile
     elogit "POSTCOOLING, $coolingtime seconds"
     sleep 10
     elogstat
@@ -187,13 +225,14 @@ coolit () {
         fi
     done
     fans off
-    echo "Done cooling"
+    echon "Done cooling"
     alloff
     elogstat
     rm -f $coolingfile
-}
+)
 
-# ****************** TIMING *****************************************
+
+#  *************************** CONTROL **********************************
 # This is a bit hokey, but it works. There are three files in /tmp/ which
 # monitor the calibration process. One. /tmp/calibrunning, is created when 
 # lamps() is called and deleted when it finishes, so when it exists the 
@@ -203,13 +242,17 @@ coolit () {
 # and deletes the runningfile. During the postcooling process, the file 
 # /tmp/calibcooling exists. The logfile /tmp/caliblog, is updated at
 # intervals shorter than 30 seconds throughout these phases, which is
-# used as a watchdoc signal
+# used as a watchdog signal. 
 
 # The third is /tmp/calibready, which is created when the lamps are warmed
 # up and ready for a calibration exposure. It is deleted by the function
 # 'go()' which starts the timing for the exposure, and turns the lamps off
 # in the sequence determined by the times given to lamp(). At the end
 # the running file is deleted.
+
+# A fourth, /tmp/calibtesting, is present
+# in engineering mode and prevents the monitor from shutting down the
+# system while testing.
 
 # remove all the signal files and turn everything off when this file
 # is sourced
@@ -218,6 +261,45 @@ rm -f $runningfile
 rm -f $testingfile
 rm -f $coolingfile
 alloff
+
+# NB!!!! These files must NEVER be executed in the lamps context,
+# only at the bash prompt
+
+go() {
+    if [ -e $readyfile ]
+    then
+        rm -f $readyfile
+    else
+        elogit " Not ready: cannot execute go command"
+    fi
+}
+
+waitandgo () {
+    while [ ! -e $readyfile ]
+    do
+        sleep 1
+    done
+}
+
+stop () {
+    if [ -e $runningfile ]
+    then
+        elogit "Killing running calibration process"
+        kill `cat $runningfile`
+    elif [ -e $coolingfile ]
+    then
+        elogit "Killing running cooling process"
+        kill `cat $coolingfile`
+    fi
+    #clean up
+    alloff
+    rm -f $readyfile
+    rm -f $runningfile
+    rm -f $testingfile
+    rm -f $coolingfile
+    elogstat    
+}
+
 
 # ********************************************************************
 # ***************** LAMPS ********************************************
@@ -229,12 +311,14 @@ alloff
 # is past. It is an error to try to run the continuum lamp at the
 # same time the gaslamps are being run; the fan requirements are
 # incompatible and the power draw is excessive
-
     
 _lamps () (
     if [ "$2" = "" ]
     then  
-       echo "USAGE:lamps lampname time [lampname time] [lampname time] [nocool]
+       echo "USAGE:lamps lampname time [lampname time] [lampname time] [nocool]"
+       echo "      lampnames are   neon argon krypton xenon hgcd cont"
+       echo "      times in integer seconds"
+       echo "      nocool suppresses 2 minute cooling sequence at end"
        exit
     fi
 
@@ -249,8 +333,8 @@ _lamps () (
     rm -f $testingfile
     rm -f $coolingfile
     echo $BASHPID > $runningfile
-    echo
-    echo " Process PID = $BASHPID"
+    echon
+    echon " Process PID = $BASHPID"
 
     longtime=0
     
@@ -300,17 +384,24 @@ _lamps () (
 
     if $contflg && $hgcdflg
     then
-        echo "You cannot run the continuum lamp and the hgcd lamp concurrently"
+        echon "You cannot run the continuum lamp and the hgcd lamp concurrently"
         return -1
     fi
 
     # init the log
     logit
     logit
-    logit "Calibration Lamp run `udtstr`"
-    logit
+    elogit "Calibration Lamp run `udtstr`"
+    elogit
 
-    echo "${chtime[*]}, longtime = $longtime"
+    for i in 1 2 3 4 5 6 7
+    do
+        if [ "${chtime[$i]}" != "0" ]
+        then
+            elogit "${chname[$i]}  ${chtime[$i]}"
+        fi
+    done
+    elogit "longtime = $longtime"
    
     # turn hgcd on if selected
 
@@ -359,7 +450,7 @@ _lamps () (
         sleep 2
         val=`adcread 7`
         thresh=$fadcthresh
-            #echo "val,thresh=$val $thresh"
+            #echon "val,thresh=$val $thresh"
         if compare "$val < $thresh" 
         then
             elogit "FAN ERROR: val,thresh=$val,$thresh"
@@ -400,18 +491,29 @@ _lamps () (
     then
         fans $hgcdfanspeed
     fi
-    echo
+
+    # all ready. Begin wait loop. Wait for ~two minutes and
+    # shut down if no response
+    echon
     elogit "lamps ready --- waiting"
-    echo
+    echon
     touch $readyfile
     iter=0
     while [ -e $readyfile ]
     do
-        if [ $(( iter % 20 )) = 0 ]
+        if [ $(( iter % 20 )) = 0 ] # every 10 seconds
         then
             elogstat
         fi
         iter=$((iter + 1))
+        if [ $iter -gt 200 ]
+        then 
+            elogit "Lamps timed out waiting for go signal, `udtstr`"
+            alloff
+            rm -f $readyfile
+            rm -f $runningfile
+            exit -1
+        fi
         sleep 0.5
     done       
 
@@ -424,8 +526,6 @@ _lamps () (
     if $contflg
     then
         # turn on the continuum lamp. 
-
-
         echo 1 > $gpiosysdir/gpio${chport[7]}/value
     fi
 
@@ -439,9 +539,11 @@ _lamps () (
     done
 
     
-    elogit "Going"
+    elogit "Going `udtstr`"
     oldtime=-1
     iter=0
+    firstime=true
+
     while true
     do
         timenow=$((`date -u +%s` - $timestart ))
@@ -449,18 +551,25 @@ _lamps () (
         do
             if [ ${chtime[$i]} -gt 0 ] && [ $timenow -gt ${chtime[$i]} ]
             then
-                echo "Turning off lamp $i"
+                echon "Turning off lamp $i"
                 # turn off lamp and indicate not active
                 echo 0 > $gpiosysdir/gpio${chport[$i]}/value
                 chtime[$i]=0
             fi
         done
-        if [ $(($timenow % 10)) = 0 ]
+        sleep 1 # let lamps light
+        if [ $(($timenow % 2)) = 0 ]
         then
             if [ "$oldtime" != $timenow ] # first time integer seconds change
             then
-                # echo "iter=$iter oldtime,timenow=$oldtime $timenow"
-                elogstat "time=$timenow"
+                # echon "iter=$iter oldtime,timenow=$oldtime $timenow"
+                if $firstime
+                then
+                    allstat "time=$timenow"
+                    firstime=false
+                else
+                    elogstat "time=$timenow"
+                fi
                 oldtime=$timenow
             fi
         fi
@@ -477,12 +586,13 @@ _lamps () (
     if $coolflg
     then
         elogit "Done with Lamps-- Entering cooling period "
-        coolit
+        coolit &
     fi
 )   
 
+
 lamps () {
-    _lamps $* &
+    ( _lamps $* & ) 2> /dev/null
     if [ -e $runningfile ] # if error, runningfile may not be created
     then
         lamppid=`cat $runningfile`
@@ -490,30 +600,7 @@ lamps () {
     fi
 }
 
-go() {
-    if [ -e $readyfile ]
-    then
-        rm -f $readyfile
-    else
-        elogit " Not ready: cannot execute go command"
-    fi
-}
-
-stop () {
-    if [ -e $runningfile ]
-    then
-        elogit "Killing running calibration process"
-        kill `cat $runningfile`
-    else
-        echo "No runningfile; cannot stop process--Is it running?"
-    fi
-    #clean up
-    alloff
-    rm -f $readyfile
-    rm -f $runningfile
-    rm -f $testingfile
-    rm -f $coolingfile
-    elogstat    
-}
 
     
+
+
