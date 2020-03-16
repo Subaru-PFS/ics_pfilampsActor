@@ -9,7 +9,10 @@ import tempfile
 import threading
 import time
 
+logging.basicConfig(format="%(asctime)s.%(msecs)03d %(levelno)s %(name)-10s %(message)s",
+                    datefmt="%Y-%m-%dT%H:%M:%S")
 logger = logging.getLogger('caliblamp')
+logger.setLevel(logging.INFO)
 
 class CaliblampState:
     RUNNING_FILE = "/tmp/calibrunning"
@@ -40,13 +43,13 @@ class CaliblampState:
         """Call one of the caliblamps primitive shell functions or commands. """
         res = subprocess.run(["/bin/bash", "-c", "source /usr/local/bin/caliblamps && %s" % (cmdStr)],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        return res.stdout
+        return res.stdout.decode('latin-1')
 
     def isRunning(self):
-        return int(os.path.exists(self.RUNNING_FILE))
+        return str(int(os.path.exists(self.RUNNING_FILE)))
 
     def isReady(self):
-        return int(os.path.exists(self.READY_FILE))
+        return str(int(os.path.exists(self.READY_FILE)))
 
     def status(self):
         return 'OK', self.isRunning(), self.isReady()
@@ -68,6 +71,10 @@ class CaliblampState:
 
         self.cmd('lamps %s ' % (lamps))
         return self.status()
+
+    def allstat(self):
+        ret = self.cmd('allstat')
+        return ret
 
 class CaliblampRequestHandler(socketserver.BaseRequestHandler):
     def setup(self):
@@ -99,7 +106,7 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         rawCmd = str(self.request.recv(1024), 'latin-1')
         cmd = rawCmd.split()
-        print("cmd: ", cmd)
+        logger.info("cmd: %s", cmd)
 
         cmdName = cmd[0]
         if cmdName == 'setup':
@@ -108,8 +115,15 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             ret = self.caliblampState.go()
         elif cmdName == 'status':
             ret = self.caliblampState.status()
+        elif cmdName == 'allstat':
+            ret = self.caliblampState.allstat()
+        elif cmdName == 'raw':
+            _, cmdStr = rawCmd.split(None, 1)
+            logger.info("raw: %s", cmdStr)
+            ret = self.caliblampState.cmd(cmdStr)
 
-        response = " ".join(ret) + '\0'
+        logger.info("ret: %s", ret)
+        response = ret + '\0'
         self.request.sendall(response.encode('latin-1'))
 
 class CaliblampServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -129,10 +143,10 @@ def run():
 
     # Exit the server thread when our thread terminates
     server_thread.daemon = True
-    print("Server loop starting in thread:", server_thread.name)
+    logger.info("Server loop starting in thread: %s", server_thread.name)
     server_thread.start()
     server_thread.join()
-    print("Server loop done in thread:", server_thread.name)
+    logger.info("Server loop done in thread:", server_thread.name)
 
 def main(argv=None):
     if isinstance(argv, str):
