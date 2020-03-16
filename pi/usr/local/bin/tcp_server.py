@@ -38,8 +38,8 @@ class CaliblampState:
 
     def cmd(self, cmdStr):
         """Call one of the caliblamps primitive shell functions or commands. """
-        res = subprocess.run(["/bin/bash", "-c", f"source /usr/local/bin/caliblamps && {cmdStr}"], 
-                             capture_output=True, text=True)
+        res = subprocess.run(["/bin/bash", "-c", "source /usr/local/bin/caliblamps && %s" % (cmdStr)],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         return res.stdout
 
     def isRunning(self):
@@ -49,7 +49,7 @@ class CaliblampState:
         return int(os.path.exits(self.READY_FILE))
 
     def status(self):
-        return 'OK', self.isRunning(), self.isBusy()
+        return 'OK', self.isRunning(), self.isReady()
 
     def stop(self):
         """ Stop the lamps systems. """
@@ -66,7 +66,7 @@ class CaliblampState:
     def setup(self, lamps):
         """ Configure the lamp sequence. """
 
-        self.cmd(f'lamps {lamps}')
+        self.cmd('lamps %s ' % (lamps))
         return self.status()
 
 class CaliblampRequestHandler(socketserver.BaseRequestHandler):
@@ -81,17 +81,17 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             try:
                 name, timeStr = lampPart.split('=')
             except ValueError:
-                return 'ERROR', f'lamp word not name=time: {lampPart}'
+                return 'ERROR', 'lamp word not name=time: %s' % (lampPart)
             
             if name is not in self.caliblampState.lampNames:
-                return 'ERROR', f'unknown lamp name: {name}'
+                return 'ERROR', 'unknown lamp name: %s' % (name)
             
             try:
                 timeVal = float(timeStr)
             except ValueError:
-                return 'ERROR', f'lamp time not a float: {timeStr}'
+                return 'ERROR', 'lamp time not a float: %s' % (timeStr)
 
-            cmdParts.append(f'{name} {timeVal}')
+            cmdParts.append('%s %s' % (name, timeVal))
 
         cmdStr = ' '.join(cmdParts)
         return self.caliblampState.setup(cmdStr)
@@ -103,13 +103,13 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
 
         cmdName = cmd[0]
         if cmdName == 'setup':
-            ret = self.lampCmd(cmd[1:])
+            ret = self.setupCmd(cmd[1:])
         elif cmdName == 'go':
             ret = self.caliblampState.go()
         elif cmdName == 'status':
             ret = self.caliblampState.status()
 
-        response = f'" ".join(ret)\n'
+        response = '" ".join(ret)\n'
         self.request.sendall(response.encode('latin-1'))
 
 class CaliblampServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -122,17 +122,17 @@ class CaliblampServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 def run():
     state = CaliblampState()
     ip, port = '', 7000
-    with CaliblampServer((ip, port), CaliblampRequestHandler, caliblampState=state) as server:
-        # Start a thread with the server -- that thread will then start one
-        # more thread for each request
-        server_thread = threading.Thread(target=server.serve_forever)
+    server = CaliblampServer((ip, port), CaliblampRequestHandler, caliblampState=state)
+    # Start a thread with the server -- that thread will then start one
+    # more thread for each request
+    server_thread = threading.Thread(target=server.serve_forever)
 
-        # Exit the server thread when our thread terminates
-        server_thread.daemon = True
-        print("Server loop starting in thread:", server_thread.name)
-        server_thread.start()
-        server_thread.join()
-        print("Server loop done in thread:", server_thread.name)
+    # Exit the server thread when our thread terminates
+    server_thread.daemon = True
+    print("Server loop starting in thread:", server_thread.name)
+    server_thread.start()
+    server_thread.join()
+    print("Server loop done in thread:", server_thread.name)
 
 def main(argv=None):
     if isinstance(argv, str):
