@@ -12,7 +12,7 @@ import time
 logging.basicConfig(format="%(asctime)s.%(msecs)03d %(levelno)s %(name)-10s %(message)s",
                     datefmt="%Y-%m-%dT%H:%M:%S")
 logger = logging.getLogger('caliblamp')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 class CaliblampState:
     RUNNING_FILE = "/tmp/calibrunning"
@@ -55,7 +55,7 @@ class CaliblampState:
         output = res.stdout.decode('latin-1')
         logger.info('command: %s output: %s', cmdStr, output)
         return output
-
+        
     def isRunning(self):
         return str(int(os.path.exists(self.RUNNING_FILE)))
 
@@ -102,15 +102,15 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             try:
                 name, timeStr = lampPart.split('=')
             except ValueError:
-                return 'ERROR', 'lamp word not name=time: %s' % (lampPart)
+                return 'ERROR : lamp word not name=time: %s' % (lampPart)
 
             if name not in self.caliblampState.lampNames:
-                return 'ERROR', 'unknown lamp name: %s' % (name)
+                return 'ERROR : unknown lamp name: %s' % (name)
 
             try:
                 timeVal = float(timeStr)
             except ValueError:
-                return 'ERROR', 'lamp time not a float: %s' % (timeStr)
+                return 'ERROR : lamp time not a float: %s' % (timeStr)
 
             cmdParts.append('%s %s' % (name, timeVal))
 
@@ -127,6 +127,8 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             ret = self.setupCmd(cmd[1:])
         elif cmdName == 'go':
             ret = self.caliblampState.go()
+        elif cmdName == 'stop':
+            ret = self.caliblampState.stop()
         elif cmdName == 'status':
             ret = self.caliblampState.status()
         elif cmdName == 'allstat':
@@ -135,6 +137,8 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             _, cmdStr = rawCmd.split(None, 1)
             logger.info("raw: %s", cmdStr)
             ret = self.caliblampState.cmd(cmdStr)
+        else:
+            ret = 'ERROR : unknown command'
 
         logger.info("ret: %s", ret)
         response = ret + '\0'
