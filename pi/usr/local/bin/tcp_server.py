@@ -109,7 +109,7 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
         elif cmdName == 'status':
             ret = self.caliblampState.status()
 
-        response = " ".join(ret) + '\n'
+        response = " ".join(ret) + '\0'
         self.request.sendall(response.encode('latin-1'))
 
 class CaliblampServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
