@@ -46,7 +46,7 @@ class CaliblampState:
         return int(os.path.exists(self.RUNNING_FILE))
 
     def isReady(self):
-        return int(os.path.exits(self.READY_FILE))
+        return int(os.path.exists(self.READY_FILE))
 
     def status(self):
         return 'OK', self.isRunning(), self.isReady()
@@ -83,7 +83,7 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             except ValueError:
                 return 'ERROR', 'lamp word not name=time: %s' % (lampPart)
             
-            if name is not in self.caliblampState.lampNames:
+            if name not in self.caliblampState.lampNames:
                 return 'ERROR', 'unknown lamp name: %s' % (name)
             
             try:
@@ -109,7 +109,7 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
         elif cmdName == 'status':
             ret = self.caliblampState.status()
 
-        response = '" ".join(ret)\n'
+        response = " ".join(ret) + '\n'
         self.request.sendall(response.encode('latin-1'))
 
 class CaliblampServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
