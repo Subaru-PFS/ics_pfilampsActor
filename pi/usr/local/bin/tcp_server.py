@@ -52,7 +52,9 @@ class CaliblampState:
         """Call one of the caliblamps primitive shell functions or commands. """
         res = subprocess.run(["/bin/bash", "-c", "source /usr/local/bin/caliblamps && %s" % (cmdStr)],
                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        return res.stdout.decode('latin-1')
+        output = res.stdout.decode('latin-1')
+        logger.info('command: %s output: %s', cmdStr, output)
+        return output
 
     def isRunning(self):
         return str(int(os.path.exists(self.RUNNING_FILE)))
@@ -60,8 +62,11 @@ class CaliblampState:
     def isReady(self):
         return str(int(os.path.exists(self.READY_FILE)))
 
+    def isCooling(self):
+        return str(int(os.path.exists(self.COOLING_FILE)))
+
     def status(self):
-        return 'OK', self.isRunning(), self.isReady()
+        return 'OK %s %s %s' % (self.isRunning(), self.isReady(), self.isCooling())
 
     def stop(self):
         """ Stop the lamps systems. """
