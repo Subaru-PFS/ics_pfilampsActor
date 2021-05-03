@@ -16,6 +16,7 @@ def main(argv=None):
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', default=1025, help='TCP port to listen on.')
+    parser.add_argument()
     opts = parser.parse(argv)
 
 if __name__ == "__main__":

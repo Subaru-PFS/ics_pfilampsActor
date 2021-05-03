@@ -14,30 +14,36 @@ class LampsCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('setupArcs', '[<ar>] [<hgcd>] [<kr>] [<ne>] [<xe>] [<qth>]', self.setupArcs),
-            ('setupContinuum', '[<qth>]', self.setupContinuum),
+            ('prepare', '[halogen] [argon] [hgcd] [krypton] [neon] [xenon]', self.prepare),
             ('go', '', self.go),
-            ('stop', '', self.cancel),
             ('status', '', self.status),
+            ('pi', '@raw', self.raw),
         ]
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("lamps_lamps", (1, 1),
-                                        keys.Key("ar", types.Float(), help="Ar lamp time"),
+                                        keys.Key("argon", types.Float(), help="Ar lamp time"),
                                         keys.Key("hgcd", types.Float(), help="HgCd lamp time"),
-                                        keys.Key("kr", types.Float(), help="Kr lamp time"),
-                                        keys.Key("ne", types.Float(), help="Ne lamp time"),
-                                        keys.Key("Xe", types.Float(), help="Xe lamp time"),
-                                        keys.Key("qtz", types.Float(), help="Quartz lamp time"),
+                                        keys.Key("krypton", types.Float(), help="Kr lamp time"),
+                                        keys.Key("neon", types.Float(), help="Ne lamp time"),
+                                        keys.Key("xenon", types.Float(), help="Xe lamp time"),
+                                        keys.Key("halogen", types.Float(), help="Quartz lamp time"),
                                         )
 
-    def setupArcs(self, cmd):
-        """Configure the calibration system arc lamps for the given exposure times. """
+    @property
+    def pi(self):
+        return self.actor.controllers['lamps_pi']
 
-        cmd.finish("text='Present and (probably) well'")
+    def raw(self, cmd):
+        """ Send a raw command to the controller. """
 
-    def setupQuartz(self, cmd):
-        """Configure the calibration system continuum lamp for the given exposure time. """
+        cmd_txt = cmd.cmd.keywords['raw'].values[0]
+
+        ret = self.pi.lampsCmd(cmd_txt, cmd=cmd)
+        cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
+
+    def prepare(self, cmd):
+        """Configure the calibration system lamps for the given exposure times. """
 
         cmd.finish("text='Present and (probably) well'")
 
