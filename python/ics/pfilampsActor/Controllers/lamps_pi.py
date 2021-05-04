@@ -51,12 +51,12 @@ class DeviceIO(object):
         socket.socket.close(s)
 
 class SocketIO(DeviceIO):
-    def __init__(self, host, port, *argl, **argv):
+    def __init__(self, host, port, *argl, inEOL=b'\n', **argv):
         DeviceIO.__init__(self, *argl, **argv)
         self.host = host
         self.port = port
 
-        self.ioBuffer = bufferedSocket.BufferedSocket('lampsio')
+        self.ioBuffer = bufferedSocket.BufferedSocket('lampsio', EOL=inEOL)
         
     def _connect(self, cmd=None, timelim=1.0):
         try:
@@ -76,7 +76,7 @@ class SocketIO(DeviceIO):
 
         return s
 
-    def readOneLine(self, sock=None, timelim=1.0, cmd=None):
+    def readOneResponse(self, sock=None, timelim=1.0, cmd=None):
         if sock is None:
             sock = self.connect(cmd=cmd)
 
@@ -84,7 +84,7 @@ class SocketIO(DeviceIO):
 
         sock.close()
 
-        return ret
+        return ret.strip()
 
     def sendOneCommand(self, cmdStr, timelim=1.0, sock=None, cmd=None):
         if cmd is None:
@@ -106,7 +106,7 @@ class SocketIO(DeviceIO):
             cmd.warn('text="failed to create send command to %s: %s"' % (self.name, e))
             raise
 
-        ret = self.readOneLine(timelim=timelim, sock=sock, cmd=cmd)
+        ret = self.readOneResponse(timelim=timelim, sock=sock, cmd=cmd)
 
         self.logger.debug('received %r', ret)
         cmd.diag('text="received %r"' % ret)
@@ -129,6 +129,7 @@ class lamps_pi(object):
         self.logger.info(f'connecting to {host}:{port}')
 
         self.dev = SocketIO(host, port, name, self.EOL,
+                            inEOL=b'\0',
                             keepOpen=False,
                             loglevel=loglevel)
 
@@ -144,4 +145,5 @@ class lamps_pi(object):
 
         cmd.inform(f'text="sending to : {cmdStr}"')
         ret = self.dev.sendOneCommand(cmdStr, timelim=timelim, cmd=cmd)
+
         return ret
