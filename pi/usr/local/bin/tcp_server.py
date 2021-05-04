@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import socketserver
+import subprocess
 import tempfile
 import threading
 import time
@@ -11,99 +12,89 @@ import time
 logger = logging.getLogger('caliblamp')
 
 class CaliblampState:
-    GO_FILE = "/tmp/caliblampgo"
-    RUNNING_FILE = "/tmp/caliblamprunning"
-    BUSY_FILE = "/tmp/caliblampbusy"
+    RUNNING_FILE = "/tmp/calibrunning"
+    READY_FILE = "/tmp/calibready"
+    COOLING_FILE = "/tmp/calibcooling"
+
+    lampNames = {'neon', 'argon', 'krypton', 'xenon',
+                 'hgcd', 'cont'}
 
     def __init__(self):
-        """Track and control the real SuNSS software, which communicates entirely via files in /tmp."""
+        """Track and control the calibration lamp, mostly via files in /tmp.
+
+        Newer versions of this scheme (SuNSS, say) only use /tmp files. Might switch. In the meanwhile, need to call shell routines. Slightly tricky. 
+        
+        calibrunning is created when lamps() is called and deleted when it finishes, so when it exists the system is active. It contains one line with the PID of the lamps() process, which runs in a subshell. It is deleted at the end of the lamps ignition sequence.
+
+        calibready is created when the lamps have been warmed up and are ready to run. It is *deleted* when the lamps ign ition sequence has been started.
+
+        calibcooling exists after the lamps have been run, and the cooling fans are running.
+
+        calibtesting exists when in testing mode. Not yet sure what this does.
+
+
+    """
         pass
+
+    def cmd(self, cmdStr):
+        """Call one of the caliblamps primitive shell functions or commands. """
+        res = subprocess.run(["/bin/bash", "-c", f"source /usr/local/bin/caliblamps && {cmdStr}"], 
+                             capture_output=True, text=True)
+        return res.stdout
 
     def isRunning(self):
         return int(os.path.exists(self.RUNNING_FILE))
 
-    def isBusy(self):
-        try:
-            with open(self.BUSY_FILE, "r") as busyFile:
-                state = busyFile.readline()
-        except FileNotFoundError:
-            return 0
-
-        return int(state)
-
-    def _waitForStart(self):
-        """Spin until we know that we are tracking.
-
-        This can involve homing the telescope. Not sure when that happens. Takes a few seconds.
-        """
-
-        maxTime = 10
-        loopTime = 0.25
-
-        t0 = time.time()
-        while True:
-            if self.isRunning():
-                return True
-
-            t1 = time.time()
-            if (t1 - t0) >= maxTime:
-                return False
-            time.sleep(loopTime)
+    def isReady(self):
+        return int(os.path.exits(self.READY_FILE))
 
     def status(self):
-        return self.isRunning(), self.isBusy()
+        return 'OK', self.isRunning(), self.isBusy()
 
     def stop(self):
-        """ Stopping the lamps systems.
-        """
-        try:
-            os.remove(self.RUNNING_FILE)
-        except FileNotFoundError:
-            pass
+        """ Stop the lamps systems. """
 
+        self.cmd('stop')
         return self.status()
 
-    def allstat(self):
-        """Request the lamp to return the current status.
+    def go(self, maxTime=30):
+        """ Light the configured lamp sequence. """
 
-        """
-        try:
-            os.remove(self.RUNNING_FILE)
-        except FileNotFoundError:
-            pass
-
+        self.cmd('go')
         return self.status()
 
+    def setup(self, lamps):
+        """ Configure the lamp sequence. """
 
-    def start(self, lampname, time, fanStatus):
-        """Request that we start tracking at a given position.
-
-        Args
-        ----
-        ha : float
-         Hour angle, degrees
-        dec : float
-         Declination, degrees
-        time : float
-         unix seconds for the HA. Can use 0.
-        speed : int
-         acceleration factor. Increase from 1 to make time go faster.
-
-        Note that the file needs to be created and filled in atomically, like "echo foo > file".
-
-        """
-
-        self.stop()
-        with tempfile.NamedTemporaryFile(mode='wt', dir='/tmp', delete=False) as gofile:
-            print(f'{lampname} {time} {fanStatus}', file=gofile)
-            tempname = gofile.name
-        os.rename(tempname, self.GO_FILE)
-        self._waitForStart()
+        self.cmd(f'lamps {lamps}')
         return self.status()
 
 class CaliblampRequestHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self.caliblampState = self.server.caliblampState
+
+    def setupCmd(self, rawCmd):
+        """Parse and execute a lamps setup command"""
+        cmdParts = []
+
+        for lampPart in rawCmd:
+            try:
+                name, timeStr = lampPart.split('=')
+            except ValueError:
+                return 'ERROR', f'lamp word not name=time: {lampPart}'
+            
+            if name is not in self.caliblampState.lampNames:
+                return 'ERROR', f'unknown lamp name: {name}'
+            
+            try:
+                timeVal = float(timeStr)
+            except ValueError:
+                return 'ERROR', f'lamp time not a float: {timeStr}'
+
+            cmdParts.append(f'{name} {timeVal}')
+
+        cmdStr = ' '.join(cmdParts)
+        return self.caliblampState.setup(cmdStr)
 
     def handle(self):
         rawCmd = str(self.request.recv(1024), 'latin-1')
@@ -111,17 +102,14 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
         print("cmd: ", cmd)
 
         cmdName = cmd[0]
-        if cmdName == 'lamps':
-            _, lampname, time, fanStatus = cmd
-            ret = self.caliblampState.start(lampname, time, fanStatus)
-        elif cmdName == 'allstat':
-            ret = self.caliblampState.allstat()
-        elif cmdName == 'stop':
-            ret = self.caliblampState.stop()
+        if cmdName == 'setup':
+            ret = self.lampCmd(cmd[1:])
+        elif cmdName == 'go':
+            ret = self.caliblampState.go()
         elif cmdName == 'status':
             ret = self.caliblampState.status()
 
-        response = f'{ret[0]} {ret[1]}\n'
+        response = f'" ".join(ret)\n'
         self.request.sendall(response.encode('latin-1'))
 
 class CaliblampServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
