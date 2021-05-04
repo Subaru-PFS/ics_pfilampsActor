@@ -14,7 +14,7 @@ class LampsCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('prepare', '[halogen] [argon] [hgcd] [krypton] [neon] [xenon]', self.prepare),
+            ('setup', '[<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.setup),
             ('go', '', self.go),
             ('status', '', self.status),
             ('pi', '@raw', self.raw),
@@ -22,13 +22,15 @@ class LampsCmd(object):
 
         # Define typed command arguments for the above commands.
         self.keys = keys.KeysDictionary("lamps_lamps", (1, 1),
-                                        keys.Key("argon", types.Float(), help="Ar lamp time"),
-                                        keys.Key("hgcd", types.Float(), help="HgCd lamp time"),
-                                        keys.Key("krypton", types.Float(), help="Kr lamp time"),
-                                        keys.Key("neon", types.Float(), help="Ne lamp time"),
-                                        keys.Key("xenon", types.Float(), help="Xe lamp time"),
-                                        keys.Key("halogen", types.Float(), help="Quartz lamp time"),
+                                        keys.Key("argon", types.Int(), help="Ar lamp time"),
+                                        keys.Key("hgcd", types.Int(), help="HgCd lamp time"),
+                                        keys.Key("krypton", types.Int(), help="Kr lamp time"),
+                                        keys.Key("neon", types.Int(), help="Ne lamp time"),
+                                        keys.Key("xenon", types.Int(), help="Xe lamp time"),
+                                        keys.Key("halogen", types.Int(), help="Quartz lamp time"),
                                         )
+
+        self.lampNames = ('argon', 'krypton', 'neon', 'xenon', 'hgcd', 'halogen')
 
     @property
     def pi(self):
