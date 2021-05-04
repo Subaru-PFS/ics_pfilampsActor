@@ -238,7 +238,7 @@ elogstat () {
 # At the end of a run, the fans are turned on at 100 percent for a period
 # of $coolingtime seconds to bring the system to ambient temperature.
 
-coolit () (
+coolit () {
     fans 99
     echo $BASHPID > $coolingfile
     elogit "POSTCOOLING, $coolingtime seconds"
@@ -259,7 +259,7 @@ coolit () (
     alloff
     elogstat
     rm -f $coolingfile
-)
+}
 
 
 #  *************************** CONTROL **********************************
@@ -284,13 +284,15 @@ coolit () (
 # in engineering mode and prevents the monitor from shutting down the
 # system while testing.
 
-# remove all the signal files and turn everything off when this file
-# is sourced
-rm -f $readyfile  
-rm -f $runningfile
-rm -f $testingfile
-rm -f $coolingfile
-alloff
+firstinit() {
+    # remove all the signal files and turn everything off when this file
+    # is sourced
+    rm -f $readyfile  
+    rm -f $runningfile
+    rm -f $testingfile
+    rm -f $coolingfile
+    alloff
+}
 
 # NB!!!! These files must NEVER be executed in the lamps context,
 # only at the bash prompt
