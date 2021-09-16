@@ -18,6 +18,7 @@ class LampsCmd(object):
         self.vocab = [
             ('prepare', 'lamps [<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
             ('go', '[<delay>]', self.go),
+            ('stop', '', self.stop),
             ('status', '', self.status),
             ('allstat', '', self.allstat),
             ('waitForReadySignal', '', self.waitForReadySignal),
@@ -137,6 +138,16 @@ class LampsCmd(object):
 
         if doFinish:
             cmd.finish()
+
+    def stop(self, cmd):
+        """Stop any lamp command, and turn off lamps. """
+
+        ret = self.pi.lampsCmd('stop')
+        self.request = {}
+        self.genStatusKey(cmd, *self._getStatus(cmd))
+        self.genVisitKeys(cmd)
+        self.allstat(cmd, doFinish=False)
+        cmd.finish()
 
     def go(self, cmd, doWait=False):
         """Given the already configured lamps, run the sequence """
