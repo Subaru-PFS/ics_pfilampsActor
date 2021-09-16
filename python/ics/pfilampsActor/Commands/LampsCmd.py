@@ -19,6 +19,7 @@ class LampsCmd(object):
             ('prepare', 'lamps [<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
             ('go', '[<delay>]', self.go),
             ('status', '', self.status),
+            ('allstat', '', self.allstat),
             ('pi', '@raw', self.raw),
         ]
 
@@ -110,3 +111,59 @@ class LampsCmd(object):
 
         ret = self.pi.lampsCmd('status')
         cmd.finish(f'text="{ret}"')
+    def _allstat(self, cmd):
+        """Fetch and parse fan speed and lamp output
+
+        200318:182439 Fans 0
+        Ne   off v=0.0283  vc=0.00
+        Ar   off v=0.0286  vc=0.00
+        Kr   off v=0.0286  vc=0.00
+        Xe   off v=0.0283  vc=0.00
+        Hg   off v=0.0287  vc=0.00
+        Cd   off v=0.0286  vc=0.00
+        Cont off v=0.0297  fs=0
+
+        """
+
+        ret = self.pi.lampsCmd('allstat')
+        statusLines = []
+        statusDict = dict()
+
+        for l in ret:
+            l = l.strip()
+            if not l:
+                continue
+            statusLines.append(l)
+
+        fansLine = statusLines[0]
+        udt, _, fans = fansLine.split()
+        statusDict['fans'] = fans
+
+        for l in statusLines:
+            name, status, rawReading, reading = ret[chan_i+1].split()
+            _, rawReading = rawReading.split('=')
+            rawReading = float(rawReading)
+
+            readingName, reading = reading.split('=')
+            reading = float(reading)
+
+            statusDict[f'{name}_state'] = status
+            statusDict[f'{name}_raw'] = rawReading
+
+            if name == 'Cont':
+                if readingName == 'fs':
+                    statusDict['cont_fanspeed'] = reading
+                    statusDict['cont'] = -9999
+                else:
+                    statusDict['cont_fanspeed'] = -9999
+                    statusDict['cont'] = reading
+            else:
+                statusDict[name] = reading
+
+        return statusDict
+
+    def allstat(self, cmd):
+        statDict = self._allstat(cmd)
+        for k, v in statDict.items():
+            cmd.inform(f'{k}={v}')
+        cmd.finish(f'')
