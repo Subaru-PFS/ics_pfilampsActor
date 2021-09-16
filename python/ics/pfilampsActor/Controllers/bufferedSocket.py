@@ -62,6 +62,8 @@ class BufferedSocket(object):
             if cmd:
                 cmd.diag('text=%s' % (qstr(msg)))
             self.buffer += more
+            if self.buffer.find(self.EOL) >= 0:
+                break
             if more == b'':
                 return ''
             
