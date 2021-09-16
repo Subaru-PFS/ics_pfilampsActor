@@ -35,7 +35,10 @@ class LampsCmd(object):
                                         keys.Key("delay", types.Float(), help="time to delay start for")
                                         )
 
-        self.lampNames = ('argon', 'krypton', 'neon', 'xenon', 'hgcd', 'halogen')
+        self.lampNames = ('neon', 'argon', 'krypton', 'xenon', 'hgcd', 'halogen')
+        self.piLampNames = ('neon', 'argon', 'krypton', 'xenon', 'hgcd', 'cont')
+
+        self.request = {}
 
     @property
     def pi(self):
@@ -56,8 +59,10 @@ class LampsCmd(object):
         if 'hgcd' in cmdkeys and 'halogen' in cmdkeys:
             cmd.fail('text="halogen and hgcd cannot both be specified"')
             return
+        visit = cmdKeys['visit'] if 'visit' in cmdKeys else None
 
         lamps = []
+        request = {}
         for name in self.lampNames:
             if name in cmdkeys:
                 val = cmdkeys[name].values[0]
@@ -65,6 +70,13 @@ class LampsCmd(object):
                 if name == 'halogen':
                     name = 'cont'
                 lamps.append(f'{name}={val}')
+                request[name] = val
+
+        self.request = {}
+        self.genVisitKeys(cmd)
+
+        self.request = request
+        self.requestVisit = visit
 
         if len(lamps) == 0:
             cmd.fail('text="at least one lamp must be specified"')
@@ -72,19 +84,25 @@ class LampsCmd(object):
 
         setupCmd = f'setup {" ".join(lamps)}'
         ret = self.pi.lampsCmd(setupCmd)
-        cmd.finish(f'text="{ret}"')
+
+        self.genStatusKey(cmd, *self._getStatus(cmd))
+        cmd.finish()
+
+    def genStatusKey(self, cmd, running, ready, cooling):
+        cmd.inform(f'calibState={running},{ready},{cooling}')
 
     def _getStatus(self, cmd):
         """Get current lamp status."""
 
         ret = self.pi.lampsCmd('status')
-        ok, running, ready = ret.split()
+        ok, running, ready, cooling = ret.split()
         if ok != 'OK':
             raise RuntimeError(f'status is bad: {ret}')
         running = bool(running)
         ready = bool(ready)
+        cooling = bool(cooling)
 
-        return running, ready
+        return running, ready, cooling
 
     def waitForReadySignal(self. cmd, doFinish=True):
         maxtime = 2
@@ -112,7 +130,7 @@ class LampsCmd(object):
                 self.request = {}
                 self.requestVisit = None
                 self.pi.lampsCmd('stop')
-                self.genKeys(cmd)
+                self.genVisitKeys(cmd)
                 return
 
             time.sleep(0.2)
@@ -130,23 +148,44 @@ class LampsCmd(object):
         self.waitForReadySignal(cmd, doFinish=False)
 
         ret = self.pi.lampsCmd('go')
-        self.genKeys(cmd)
+        self.genVisitKeys(cmd)
         time.sleep(0.5)
         self.allstat(cmd, doFinish=False)
         cmd.finish()
 
+    def genVisitKeys(self, cmd):
+        """Generate MHS keys based on confguration and status.
+
+        Slightly tricky.
+
+        For the headers, the keys at the end of the exposure will be
+        latched. So we generate keys just before the prepare based on
+        status: these should all indicate OFF. Then we generate keys
+        mostly based on allstat taken imediately after the go command:
+        these should match the request, and be valid if we ask fast
+        enough.
+
+        We also want to be able to query the current lamp status at any time.
+        """
+        mask = [int(name in self.request) for name in self.piLampsNames]
+        cmd.inform(f'lampRequestMask={mask}')
 
     def stop(self, cmd):
         """Given a running or merely configured sequence, stop it."""
 
+        self.request = {}
+        self.requestVisit = None
         ret = self.pi.lampsCmd('stop')
+        self.genVisitKeys(cmd)
+        self.genStatusKey(cmd, *self._getStatus(cmd))
         cmd.finish(f'text="{ret}"')
 
     def status(self, cmd):
         """Get current lamp status."""
 
-        ret = self.pi.lampsCmd('status')
-        cmd.finish(f'text="{ret}"')
+        self.genStatusKey(cmd, *self._getStatus(cmd))
+        cmd.finish()
+
     def _allstat(self, cmd):
         """Fetch and parse fan speed and lamp output
 
@@ -198,8 +237,9 @@ class LampsCmd(object):
 
         return statusDict
 
-    def allstat(self, cmd):
+    def allstat(self, cmd, doFinish=True):
         statDict = self._allstat(cmd)
         for k, v in statDict.items():
             cmd.inform(f'{k}={v}')
-        cmd.finish(f'')
+        if doFinish:
+            cmd.finish()
