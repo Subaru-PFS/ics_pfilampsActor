@@ -20,6 +20,7 @@ class LampsCmd(object):
             ('go', '[<delay>]', self.go),
             ('status', '', self.status),
             ('allstat', '', self.allstat),
+            ('waitForReadySignal', '', self.waitForReadySignal),
             ('pi', '@raw', self.raw),
         ]
 
@@ -85,20 +86,55 @@ class LampsCmd(object):
 
         return running, ready
 
-    def go(self, cmd):
-        """Given the already configured lamps, run the sequence """
+    def waitForReadySignal(self. cmd, doFinish=True):
+        maxtime = 2
+        if 'hgcd' in self.request:
+            maxtime = 130
 
+        lastRunning, lastReady, lastCooling = None
+        startTime = time.time()
         while True:
-            running, ready = self._getStatus(cmd)
+            running, ready, cooling = self._getStatus(cmd)
+            if running != lastRunning or ready != lastReady or cooling != lastCooling:
+                self.genStatusKey(running, ready, cooling)
+                lastRunning = running
+                lastReady = ready
+                lastCooling = cooling
             if not running:
                 cmd.fail('text="lamps are not configured"')
                 return
             if ready:
                 break
+
+            now = time.time()
+            if now - startTime > maxtime:
+                cmd.fail(f'text="lamps did not turn on in {maxtime} seconds.... stopping lamps command"')
+                self.request = {}
+                self.requestVisit = None
+                self.pi.lampsCmd('stop')
+                self.genKeys(cmd)
+                return
+
             time.sleep(0.2)
 
+        if doFinish:
+            cmd.finish()
+
+    def go(self, cmd, doWait=False):
+        """Given the already configured lamps, run the sequence """
+
+        if len(self.request) == 0:
+            cmd.fail('text="No lamps requested"')
+            return
+
+        self.waitForReadySignal(cmd, doFinish=False)
+
         ret = self.pi.lampsCmd('go')
-        cmd.finish(f'text="{ret}"')
+        self.genKeys(cmd)
+        time.sleep(0.5)
+        self.allstat(cmd, doFinish=False)
+        cmd.finish()
+
 
     def stop(self, cmd):
         """Given a running or merely configured sequence, stop it."""
