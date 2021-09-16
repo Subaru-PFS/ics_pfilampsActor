@@ -99,23 +99,23 @@ class LampsCmd(object):
         ok, running, ready, cooling = ret.split()
         if ok != 'OK':
             raise RuntimeError(f'status is bad: {ret}')
-        running = bool(running)
-        ready = bool(ready)
-        cooling = bool(cooling)
+        running = int(running)
+        ready = int(ready)
+        cooling = int(cooling)
 
         return running, ready, cooling
 
-    def waitForReadySignal(self. cmd, doFinish=True):
+    def waitForReadySignal(self, cmd, doFinish=True):
         maxtime = 2
         if 'hgcd' in self.request:
             maxtime = 130
 
-        lastRunning, lastReady, lastCooling = None
+        lastRunning = lastReady = lastCooling = None
         startTime = time.time()
         while True:
             running, ready, cooling = self._getStatus(cmd)
             if running != lastRunning or ready != lastReady or cooling != lastCooling:
-                self.genStatusKey(running, ready, cooling)
+                self.genStatusKey(cmd, running, ready, cooling)
                 lastRunning = running
                 lastReady = ready
                 lastCooling = cooling
@@ -178,8 +178,8 @@ class LampsCmd(object):
 
         We also want to be able to query the current lamp status at any time.
         """
-        mask = [int(name in self.request) for name in self.piLampsNames]
-        cmd.inform(f'lampRequestMask={mask}')
+        mask = [str(int(name in self.request)) for name in self.piLampNames]
+        cmd.inform(f'lampRequestMask={",".join(mask)}')
 
     def stop(self, cmd):
         """Given a running or merely configured sequence, stop it."""
@@ -212,6 +212,7 @@ class LampsCmd(object):
         """
 
         ret = self.pi.lampsCmd('allstat')
+        ret = ret.split('\n')
         statusLines = []
         statusDict = dict()
 
@@ -220,13 +221,14 @@ class LampsCmd(object):
             if not l:
                 continue
             statusLines.append(l)
+            cmd.debug(f'text="allstat:{l}"')
 
         fansLine = statusLines[0]
         udt, _, fans = fansLine.split()
         statusDict['fans'] = fans
 
-        for l in statusLines:
-            name, status, rawReading, reading = ret[chan_i+1].split()
+        for l in statusLines[1:]:
+            name, status, rawReading, reading = l.split()
             _, rawReading = rawReading.split('=')
             rawReading = float(rawReading)
 
