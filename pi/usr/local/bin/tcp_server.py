@@ -23,20 +23,29 @@ class CaliblampState:
                  'hgcd', 'cont'}
 
     def __init__(self):
-        """Track and control the calibration lamp, mostly via files in /tmp.
+        """
+        Track and control the calibration lamp, mostly via files in /tmp.
 
-        Newer versions of this scheme (SuNSS, say) only use /tmp files. Might switch. In the meanwhile, need to call shell routines. Slightly tricky. 
+        Newer versions of this scheme (SuNSS, say) only use /tmp
+        files. Might switch. In the meanwhile, need to call shell
+        routines. Slightly tricky.
         
-        calibrunning is created when lamps() is called and deleted when it finishes, so when it exists the system is active. It contains one line with the PID of the lamps() process, which runs in a subshell. It is deleted at the end of the lamps ignition sequence.
+        calibrunning is created when lamps() is called and deleted
+        when it finishes, so when it exists the system is active. It
+        contains one line with the PID of the lamps() process, which
+        runs in a subshell. It is deleted at the end of the lamps
+        ignition sequence.
 
-        calibready is created when the lamps have been warmed up and are ready to run. It is *deleted* when the lamps ign ition sequence has been started.
+        calibready is created when the lamps have been warmed up and
+        are ready to run. It is *deleted* when the lamps ign ition
+        sequence has been started.
 
-        calibcooling exists after the lamps have been run, and the cooling fans are running.
+        calibcooling exists after the lamps have been run, and the
+        cooling fans are running.
 
-        calibtesting exists when in testing mode. Not yet sure what this does.
-
-
-    """
+        calibtesting exists when in testing mode. Not yet sure what
+        this does.
+        """
         pass
 
     def cmd(self, cmdStr):
