@@ -89,10 +89,10 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
                 name, timeStr = lampPart.split('=')
             except ValueError:
                 return 'ERROR', 'lamp word not name=time: %s' % (lampPart)
-            
+
             if name not in self.caliblampState.lampNames:
                 return 'ERROR', 'unknown lamp name: %s' % (name)
-            
+
             try:
                 timeVal = float(timeStr)
             except ValueError:

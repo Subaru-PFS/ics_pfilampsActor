@@ -16,8 +16,8 @@ class LampsCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('setup', '[<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.setup),
-            ('go', '', self.go),
+            ('prepare', 'lamps [<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
+            ('go', '[<delay>]', self.go),
             ('status', '', self.status),
             ('pi', '@raw', self.raw),
         ]
@@ -30,6 +30,7 @@ class LampsCmd(object):
                                         keys.Key("neon", types.Int(), help="Ne lamp time"),
                                         keys.Key("xenon", types.Int(), help="Xe lamp time"),
                                         keys.Key("halogen", types.Int(), help="Quartz lamp time"),
+                                        keys.Key("delay", types.Float(), help="time to delay start for")
                                         )
 
         self.lampNames = ('argon', 'krypton', 'neon', 'xenon', 'hgcd', 'halogen')
@@ -46,7 +47,7 @@ class LampsCmd(object):
         ret = self.pi.lampsCmd(f'raw {cmd_txt}', cmd=cmd)
         cmd.finish('text=%s' % (qstr('returned: %s' % (ret))))
 
-    def setup(self, cmd):
+    def prepare(self, cmd):
         """Configure the calibration system lamps for the given exposure times. """
 
         cmdkeys = cmd.cmd.keywords
