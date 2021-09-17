@@ -16,7 +16,7 @@ class LampsCmd(object):
         # passed a single argument, the parsed and typed command.
         #
         self.vocab = [
-            ('prepare', 'lamps [<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
+            ('prepare', '[<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
             ('go', '[<delay>]', self.go),
             ('stop', '', self.stop),
             ('status', '', self.status),
@@ -60,10 +60,10 @@ class LampsCmd(object):
         if 'hgcd' in cmdkeys and 'halogen' in cmdkeys:
             cmd.fail('text="halogen and hgcd cannot both be specified"')
             return
-        visit = cmdKeys['visit'] if 'visit' in cmdKeys else None
 
         lamps = []
         request = {}
+        maxtime = 0
         for name in self.lampNames:
             if name in cmdkeys:
                 val = cmdkeys[name].values[0]
@@ -72,12 +72,12 @@ class LampsCmd(object):
                     name = 'cont'
                 lamps.append(f'{name}={val}')
                 request[name] = val
-
+                maxtime = max(maxtime, val)
+        self.requestTime = maxtime
         self.request = {}
         self.genVisitKeys(cmd)
 
         self.request = request
-        self.requestVisit = visit
 
         if len(lamps) == 0:
             cmd.fail('text="at least one lamp must be specified"')
@@ -129,7 +129,6 @@ class LampsCmd(object):
             if now - startTime > maxtime:
                 cmd.fail(f'text="lamps did not turn on in {maxtime} seconds.... stopping lamps command"')
                 self.request = {}
-                self.requestVisit = None
                 self.pi.lampsCmd('stop')
                 self.genVisitKeys(cmd)
                 return
@@ -160,8 +159,12 @@ class LampsCmd(object):
 
         ret = self.pi.lampsCmd('go')
         self.genVisitKeys(cmd)
-        time.sleep(0.5)
-        self.allstat(cmd, doFinish=False)
+
+        waitTime = self.requestTime + 5
+        cmd.inform(f'text="waiting {waitTime} for lamps to go out."')
+        time.sleep(waitTime)
+
+        # self.allstat(cmd, doFinish=False)
         cmd.finish()
 
     def genVisitKeys(self, cmd):
@@ -178,18 +181,14 @@ class LampsCmd(object):
 
         We also want to be able to query the current lamp status at any time.
         """
-        mask = [str(int(name in self.request)) for name in self.piLampNames]
+        def lampStateName(val):
+            return 'on' if val else 'off'
+
+        mask = [lampStateName(name in self.request) for name in self.piLampNames]
+        times = [str(self.request.get(name, 0)) for name in self.piLampNames]
+
         cmd.inform(f'lampRequestMask={",".join(mask)}')
-
-    def stop(self, cmd):
-        """Given a running or merely configured sequence, stop it."""
-
-        self.request = {}
-        self.requestVisit = None
-        ret = self.pi.lampsCmd('stop')
-        self.genVisitKeys(cmd)
-        self.genStatusKey(cmd, *self._getStatus(cmd))
-        cmd.finish(f'text="{ret}"')
+        cmd.inform(f'lampRequestTimes={",".join(times)}')
 
     def status(self, cmd):
         """Get current lamp status."""
@@ -221,11 +220,15 @@ class LampsCmd(object):
             if not l:
                 continue
             statusLines.append(l)
-            cmd.debug(f'text="allstat:{l}"')
+            cmd.inform(f'text="allstat:{l}"')
 
-        fansLine = statusLines[0]
-        udt, _, fans = fansLine.split()
-        statusDict['fans'] = fans
+        try:
+            fansLine = statusLines[0]
+            udt, _, fans = fansLine.split()
+            statusDict['fans'] = fans
+        except Exception as e:
+            cmd.fail(f'text="did not get allstat output"')
+            return
 
         for l in statusLines[1:]:
             name, status, rawReading, reading = l.split()
@@ -240,11 +243,11 @@ class LampsCmd(object):
 
             if name == 'Cont':
                 if readingName == 'fs':
-                    statusDict['cont_fanspeed'] = reading
-                    statusDict['cont'] = -9999
+                    statusDict['Cont_fanspeed'] = reading
+                    statusDict['Cont'] = -9999
                 else:
-                    statusDict['cont_fanspeed'] = -9999
-                    statusDict['cont'] = reading
+                    statusDict['Cont_fanspeed'] = -9999
+                    statusDict['Cont'] = reading
             else:
                 statusDict[name] = reading
 
@@ -252,7 +255,9 @@ class LampsCmd(object):
 
     def allstat(self, cmd, doFinish=True):
         statDict = self._allstat(cmd)
-        for k, v in statDict.items():
-            cmd.inform(f'{k}={v}')
+
+        statNames = ('Ne','Ar','Kr','Xe','Hg','Cd','Cont')
+        for lamp in statNames:
+            cmd.inform(f'{lamp}State={statDict[lamp+"_state"]},{statDict[lamp]}')
         if doFinish:
             cmd.finish()
