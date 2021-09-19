@@ -108,9 +108,9 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
                 return 'ERROR : unknown lamp name: %s' % (name)
 
             try:
-                timeVal = float(timeStr)
+                timeVal = int(timeStr)
             except ValueError:
-                return 'ERROR : lamp time not a float: %s' % (timeStr)
+                return 'ERROR : lamp time not an int: %s' % (timeStr)
 
             cmdParts.append('%s %s' % (name, timeVal))
 
