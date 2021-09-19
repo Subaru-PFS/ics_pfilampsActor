@@ -238,7 +238,7 @@ elogstat () {
 # At the end of a run, the fans are turned on at 100 percent for a period
 # of $coolingtime seconds to bring the system to ambient temperature.
 
-coolit () (
+coolit () {
     fans 99
     echo $BASHPID > $coolingfile
     elogit "POSTCOOLING, $coolingtime seconds"
@@ -259,7 +259,7 @@ coolit () (
     alloff
     elogstat
     rm -f $coolingfile
-)
+}
 
 
 #  *************************** CONTROL **********************************
@@ -284,13 +284,15 @@ coolit () (
 # in engineering mode and prevents the monitor from shutting down the
 # system while testing.
 
-# remove all the signal files and turn everything off when this file
-# is sourced
-rm -f $readyfile  
-rm -f $runningfile
-rm -f $testingfile
-rm -f $coolingfile
-alloff
+firstinit() {
+    # remove all the signal files and turn everything off when this file
+    # is sourced
+    rm -f $readyfile  
+    rm -f $runningfile
+    rm -f $testingfile
+    rm -f $coolingfile
+    alloff
+}
 
 # NB!!!! These files must NEVER be executed in the lamps context,
 # only at the bash prompt
@@ -531,12 +533,12 @@ _lamps () (
     iter=0
     while [ -e $readyfile ]
     do
-        if [ $(( iter % 20 )) = 0 ] # every 10 seconds
+        if [ $(( iter % 40 )) = 0 ] # every 10 seconds
         then
             elogstat
         fi
         iter=$((iter + 1))
-        if [ $iter -gt 200 ]
+        if [ $iter -gt 400 ]
         then 
             elogit "Lamps timed out waiting for go signal, `udtstr`"
             alloff
@@ -544,7 +546,7 @@ _lamps () (
             rm -f $runningfile
             exit -1
         fi
-        sleep 0.5
+        sleep 0.25
     done       
 
     # readyfile gone, so start exposure
@@ -568,7 +570,6 @@ _lamps () (
         fi
     done
 
-    
     elogit "Going `udtstr`"
     oldtime=-1
     iter=0
