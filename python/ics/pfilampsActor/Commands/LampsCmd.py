@@ -17,7 +17,7 @@ class LampsCmd(object):
         #
         self.vocab = [
             ('prepare', '[<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
-            ('go', '[<delay>]', self.go),
+            ('go', '[<delay>] [@noWait]', self.go),
             ('stop', '', self.stop),
             ('status', '', self.status),
             ('allstat', '', self.allstat),
@@ -148,12 +148,15 @@ class LampsCmd(object):
         self.allstat(cmd, doFinish=False)
         cmd.finish()
 
-    def go(self, cmd, doWait=False):
+    def go(self, cmd):
         """Given the already configured lamps, run the sequence """
 
         if len(self.request) == 0:
             cmd.fail('text="No lamps requested"')
             return
+
+        cmdKeys = cmd.cmd.keywords
+        noWait = 'noWait' in cmdKeys
 
         self.waitForReadySignal(cmd, doFinish=False)
 
@@ -161,8 +164,11 @@ class LampsCmd(object):
         self.genVisitKeys(cmd)
 
         waitTime = self.requestTime + 5
-        cmd.inform(f'text="waiting {waitTime} for lamps to go out."')
-        time.sleep(waitTime)
+        if noWait:
+            cmd.inform(f'text="lamps should be on; please wait {waitTime} to be safe."')
+        else:
+            cmd.inform(f'text="waiting {waitTime} for lamps to go out."')
+            time.sleep(waitTime)
 
         # self.allstat(cmd, doFinish=False)
         cmd.finish()
