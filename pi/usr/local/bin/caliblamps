@@ -314,24 +314,33 @@ waitandgo () {
 }
 
 stop () {
+    # Turn off all lamps, and clear running and testing state.
+    # But leave any fans on.
     if [ -e $runningfile ]
     then
         elogit "Killing running calibration process"
         kill `cat $runningfile`
-    elif [ -e $coolingfile ]
-    then
-        elogit "Killing running cooling process"
-        kill `cat $coolingfile`
     fi
     #clean up
     alloff
     rm -f $readyfile
     rm -f $runningfile
     rm -f $testingfile
-    rm -f $coolingfile
     elogstat    
 }
 
+stopall () {
+    # Turn off all lamps and the fans, and clear all state.
+    stop
+
+    if [ -e $coolingfile ]
+    then
+        elogit "Killing running cooling process"
+        kill `cat $coolingfile`
+    fi
+    rm -f $coolingfile
+    elogstat    
+}
 
 # ********************************************************************
 # ***************** LAMPS ********************************************
