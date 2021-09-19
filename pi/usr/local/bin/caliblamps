@@ -466,16 +466,16 @@ _lamps () (
     
         elogstat "  Time=0"
         # warm up lamp -- quit after 2 minutes or val=0.6, whichever first
-        for i in `seq 1 7`
+        for i in `seq 1 24`
         do
             val=`adcread 6`
-            time=$(( 15 * $i ))
+            time=$(( 5 * $i ))
 
             if compare "$val > $hgcdfanthresh"
             then
                 break
             fi
-            sleep 15
+            sleep 5
             elogstat "  Time=$time"
         done
         fans $hgcdfanspeed    
@@ -523,7 +523,6 @@ _lamps () (
             fi
         fi
     done
-
 
     # turn fans on if not already on. Note that continuum trumps; if in the
     # unlikely situation that you are running both gas and continuum, the
