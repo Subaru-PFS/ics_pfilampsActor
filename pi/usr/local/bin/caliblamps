@@ -257,7 +257,6 @@ coolit () {
     fans off
     rm -f $coolingfile
     echon "Done cooling"
-    alloff
     elogstat
 }
 
