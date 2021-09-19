@@ -411,6 +411,7 @@ _lamps () (
         then
             longtime=${chtime[$chl]}
         fi
+        elogit "define $lampl $chl ${chtime[$chl]} $longtime"
         portl=${chport[$chl]}
         if [ $lampl = "hgcd" ] 
         then hgcdflg=true
@@ -566,6 +567,7 @@ _lamps () (
     if $contflg
     then
         # turn on the continuum lamp. 
+        elogit "turning on cont" 
         echo 1 > $gpiosysdir/gpio${chport[7]}/value
     fi
 
@@ -574,6 +576,7 @@ _lamps () (
     do
         if [ ${chtime[$i]} -gt 0 ]
         then
+            elogit "turning on lamp $i"
             echo 1 > $gpiosysdir/gpio${chport[$i]}/value
         fi
     done
