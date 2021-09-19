@@ -255,10 +255,10 @@ coolit () {
         fi
     done
     fans off
+    rm -f $coolingfile
     echon "Done cooling"
     alloff
     elogstat
-    rm -f $coolingfile
 }
 
 
@@ -596,7 +596,7 @@ _lamps () (
                 chtime[$i]=0
             fi
         done
-        sleep 1 # let lamps light
+        sleep 1 # let lamps settle
         if [ $(($timenow % 2)) = 0 ]
         then
             if [ "$oldtime" != $timenow ] # first time integer seconds change
