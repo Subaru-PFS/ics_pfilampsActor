@@ -68,6 +68,10 @@ class LampsCmd(object):
             if name in cmdkeys:
                 val = cmdkeys[name].values[0]
                 val = int(val)
+                if val <= 0:
+                    if val < 0:
+                        cmd.warn(f'text="negative {name} lamp request ignored"')
+                    continue
                 if name == 'halogen':
                     name = 'cont'
                 lamps.append(f'{name}={val}')
