@@ -367,11 +367,7 @@ _lamps () (
     gasflg=false
     coolflg=true
 
-    alloff
-    rm -f $readyfile
-    rm -f $runningfile
-    rm -f $testingfile
-    rm -f $coolingfile
+    stopall
     echo $BASHPID > $runningfile
     echon
     echon " Process PID = $BASHPID"
