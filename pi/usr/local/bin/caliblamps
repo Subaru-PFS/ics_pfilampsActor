@@ -458,6 +458,7 @@ _lamps () (
             alloff
             return -1
         fi
+        sleep 3                 # need to let some fan cap discharge
         echo 1 > $gpiosysdir/gpio${chport[5]}/value
     
         elogstat "  Time=0"
