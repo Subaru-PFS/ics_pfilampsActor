@@ -7,40 +7,6 @@
 
 source /usr/local/bin/calibhead
 
-#which does the following:
-
-##setup and export channel info
-## These arrays are 1-based, and have the name in element 0 for possible
-## convenience
-#export chname=("" neon argon krypton xenon hg  cd cont fans)
-#export chlabel=("chlabel" "Ne  " "Ar  " "Kr  " "Xe  " "Hg  " "Cd  " "Cont" "Fans")
-#export chtime=("chtime" 0 0 0 0 0 0 0 0 )
-#export chport=("chport" 26 22 25 27 23 23 17 24)
-#export chval=("chval" 0 0 0 0 0 0 0 0 )
-#export adcval=("adcval" 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 )
-#export adcthresh=("adcthresh" 0.7 0.7 0.5 0.35 0.7 0.3 2.5 )
-#export adctarget=("adctarget" 0.92 1.13 1.13 0.67 0.52 )
-#
-##export parameters
-#export fadcthresh=0.20    # fan speed signal threshold for being sure fans are running
-#export hgcdfanspeed=20    # fan speed set during hgcd (and other gaslamps) run
-#export hgcdfanthresh=0.35 # hgcd signal above which fans turn on and it is deemed `ready'
-#export coolingtime=120    # time for fans on full after a session to equalize temps
-#
-##Note that fans threshold, target is for the speed feedback at speed=50, 1s
-##and the thresholds and targets are for readings with the power-up sequence
-##xe, kr, ar, ne at each stage
-#
-## /sys/directories
-#export pwmsysdir=/sys/class/pwm/pwmchip0/pwm0
-#export gpiosysdir=/sys/class/gpio
-#
-## log and control files
-#export caliblog=/tmp/caliblog
-#export readyfile=/tmp/calibready
-#export runningfile=/tmp/calibrunning
-#export testingfile=/tmp/calibtesting
-#export coolingfile=/tmp/calibcooling
 
 # cool compare statement for strings and decimal numbers
 # usage is like:
@@ -299,6 +265,7 @@ firstinit() {
 go() {
     if [ -e $readyfile ]
     then
+        elogit " allowing prepared lamps to run..."
         rm -f $readyfile
     else
         elogit " Not ready: cannot execute go command"
@@ -637,8 +604,3 @@ lamps () {
         export lamppid # for external consumption only
     fi
 }
-
-
-    
-
-
