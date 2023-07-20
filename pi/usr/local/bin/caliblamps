@@ -75,13 +75,22 @@ statline() {  # parameter is channel number
 # for all channels, prints timestamp, fan speed, and then the statline
 # data for all channels
 
+timestr () {
+    date +"%Y-%m-%dT%H:%M:%S"
+}
+
 # this version solves the raw outputs for the raregaslamp for the real
 # inputs-- crosstalk() reads crosstable.dat to get the matrix
 allstat() {
+    ts=`timestr`
     echo
-    echo "`udtstr` Fans `fanspeed` $1" 
+    echo "`udtstr` Fans `fanspeed` $1"
     raw="`adcread 1` `adcread 2` `adcread 3` `adcread 4` `adcread 5` `adcread 6` `adcread 7`"
     r=`crosstalk $raw`
+
+    states=""
+    vs=""
+    vcs=""
 
     ra="0 $raw" 
     a="0 $r"    # to fix the 1-based arrays
@@ -90,16 +99,29 @@ allstat() {
 
     for i in 1 2 3 4 5 6  
     do
-        echo "${chlabel[$i]} `portstat $i` v=${raa[$i]}  vc=${aa[$i]} "
+        state=`portstat $i`
+        echo "${chlabel[$i]} $state v=${raa[$i]}  vc=${aa[$i]} "
+        states="$states $state"
+        vs="$vs ${raa[$i]}"
+        vcs="$vcs ${aa[$i]}"
     done
     i=7
     if [ "`portstat $i`" = "off" ]
     then
-        echo "${chlabel[$i]} `portstat $i` v=${raa[$i]}  fs=`fanread` "
+        fs=`fanread`
+        echo "${chlabel[$i]} `portstat $i` v=${raa[$i]}  fs=$fs "
+        states="$states off"
+        vs="$vs NaN ${raa[$i]}"
+        vcs="$vcs NaN ${fs}.0"
     else
         echo "${chlabel[$i]} `portstat $i` v=${raa[$i]}  vc=${aa[$i]} "
+        states="$states on"
+        vs="$vs ${raa[$i]} NaN"
+        vcs="$vcs ${aa[$i]} NaN"
     fi
     echo
+
+    echo "$ts  $states   $vs   $vcs" >> $runlogfile
 }
 
 # outputs raw voltages only, NOT solved for input

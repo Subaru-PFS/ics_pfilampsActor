@@ -1,7 +1,7 @@
 all:	install install_system
 
 install: is_normal
-	sudo cp -pr pi/usr/local/bin/* /usr/local/bin/
+	cp -pr pi/usr/local/bin/* /usr/local/bin/
 
 install_system: is_normal
 	sudo cp -pr etc/* /etc/

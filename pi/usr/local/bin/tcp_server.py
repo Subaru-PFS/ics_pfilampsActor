@@ -10,7 +10,7 @@ import threading
 import time
 
 logging.basicConfig(format="%(asctime)s.%(msecs)03d %(levelno)s %(name)-10s %(message)s",
-                    datefmt="%Y-%m-%dT%H:%M:%S")
+                    filename='/tmp/cmds.txt', datefmt="%Y-%m-%dT%H:%M:%S")
 logger = logging.getLogger('caliblamp')
 logger.setLevel(logging.DEBUG)
 
