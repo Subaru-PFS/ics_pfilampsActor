@@ -110,9 +110,9 @@ class LampsCmd(object):
         return running, ready, cooling
 
     def waitForReadySignal(self, cmd, doFinish=True):
-        maxtime = 2
+        maxtime = 5
         if 'hgcd' in self.request:
-            maxtime = 130
+            maxtime = 190
 
         lastRunning = lastReady = lastCooling = None
         startTime = time.time()
