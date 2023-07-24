@@ -111,6 +111,9 @@ class LampsCmd(object):
 
     def waitForReadySignal(self, cmd, doFinish=True):
         maxtime = 5
+        maxWaitForRunningTime = 1
+        loopTime = 0.2
+
         if 'hgcd' in self.request:
             maxtime = 190
 
@@ -118,14 +121,18 @@ class LampsCmd(object):
         startTime = time.time()
         while True:
             running, ready, cooling = self._getStatus(cmd)
+            now = time.time()
             if running != lastRunning or ready != lastReady or cooling != lastCooling:
                 self.genStatusKey(cmd, running, ready, cooling)
                 lastRunning = running
                 lastReady = ready
                 lastCooling = cooling
             if not running:
-                cmd.fail('text="lamps are not configured"')
-                return
+                if now - startTime > maxWaitForRunningTime:
+                    cmd.fail('text="lamps are not configured"')
+                    return
+                else:
+                    cmd.warn('text="lamps are not configured, but checking again...."')
             if ready:
                 break
 
@@ -137,7 +144,7 @@ class LampsCmd(object):
                 self.genVisitKeys(cmd)
                 return
 
-            time.sleep(0.2)
+            time.sleep(loopTime)
 
         if doFinish:
             cmd.finish()
