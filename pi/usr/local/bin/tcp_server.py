@@ -90,6 +90,10 @@ class CaliblampState:
         ret = self.cmd('allstat')
         return ret
 
+    def runstat(self):
+        ret = self.cmd('tail -1 /tmp/runlog.txt')
+        return ret
+
 class CaliblampRequestHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self.caliblampState = self.server.caliblampState
@@ -133,6 +137,8 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             ret = self.caliblampState.status()
         elif cmdName == 'allstat':
             ret = self.caliblampState.allstat()
+        elif cmdName == 'runstat':
+            ret = self.caliblampState.runstat()
         elif cmdName == 'raw':
             _, cmdStr = rawCmd.split(None, 1)
             logger.info("raw: %s", cmdStr)

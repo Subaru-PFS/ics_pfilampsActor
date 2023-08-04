@@ -1,3 +1,4 @@
+import re
 import time
 
 import opscore.protocols.keys as keys
@@ -19,6 +20,7 @@ class LampsCmd(object):
             ('prepare', '[<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
             ('go', '[<delay>] [@noWait]', self.go),
             ('stop', '', self.stop),
+            ('halt', '', self.halt),
             ('status', '', self.status),
             ('allstat', '', self.allstat),
             ('waitForReadySignal', '', self.waitForReadySignal),
@@ -38,6 +40,12 @@ class LampsCmd(object):
 
         self.lampNames = ('neon', 'argon', 'krypton', 'xenon', 'hgcd', 'halogen')
         self.piLampNames = ('neon', 'argon', 'krypton', 'xenon', 'hgcd', 'cont')
+        self.keyLampNames = dict(neon='Ne',
+                                 argon='Ar',
+                                 krypton='Kr',
+                                 xenon='Xe',
+                                 hgcd='HgCd',
+                                 cont='Cont')
 
         self.request = {}
 
@@ -78,10 +86,8 @@ class LampsCmd(object):
                 request[name] = val
                 maxtime = max(maxtime, val)
         self.requestTime = maxtime
-        self.request = {}
-        self.genVisitKeys(cmd)
-
         self.request = request
+        self.genVisitKeys(cmd)
 
         if len(lamps) == 0:
             cmd.fail('text="at least one lamp must be specified"')
@@ -91,6 +97,7 @@ class LampsCmd(object):
         ret = self.pi.lampsCmd(setupCmd)
 
         self.genStatusKey(cmd, *self._getStatus(cmd))
+        self.reqstat(cmd, doFinish=False)
         cmd.finish()
 
     def genStatusKey(self, cmd, running, ready, cooling):
@@ -149,6 +156,29 @@ class LampsCmd(object):
         if doFinish:
             cmd.finish()
 
+    def waitForFinishedSignal(self, cmd):
+        maxtime = 5
+        startTime = time.time()
+        while True:
+            running, ready, cooling = self._getStatus(cmd)
+            cmd.debug(f'text="running, ready, cooling = {running}, {ready}, {cooling}"')
+            if not running:
+                return True
+
+            now = time.time()
+            if now - startTime > maxtime:
+                cmd.fail(f'text="lamps did not turn off in {maxtime} seconds; will try to force things off."')
+                self.request = {}
+                self.pi.lampsCmd('stop')
+                self.genVisitKeys(cmd)
+                return False
+
+            time.sleep(0.5)
+
+    def halt(self, cmd):
+        ret = self.pi.lampsCmd('stop')
+        self.stop(cmd)
+
     def stop(self, cmd):
         """Stop any lamp command, and turn off lamps. """
 
@@ -156,7 +186,8 @@ class LampsCmd(object):
         self.request = {}
         self.genStatusKey(cmd, *self._getStatus(cmd))
         self.genVisitKeys(cmd)
-        self.allstat(cmd, doFinish=False)
+        self.reqstat(cmd, doFinish=False)
+        # self.allstat(cmd, doFinish=False)
         cmd.finish()
 
     def go(self, cmd):
@@ -174,15 +205,21 @@ class LampsCmd(object):
         ret = self.pi.lampsCmd('go')
         self.genVisitKeys(cmd)
 
-        waitTime = self.requestTime + 5
+        waitTime = max(0, self.requestTime - 1)
+
         if noWait:
-            cmd.inform(f'text="lamps should be on; please wait {waitTime} to be safe."')
-        else:
+            cmd.finish(f'text="lamps should be on; please wait {waitTime} to be safe."')
+            return
+        elif waitTime > 0:
             cmd.inform(f'text="waiting {waitTime} for lamps to go out."')
             time.sleep(waitTime)
 
-        # self.allstat(cmd, doFinish=False)
-        cmd.finish()
+        #ok = self.waitForFinishedSignal(cmd)
+        time.sleep(3)
+        self.allstat(cmd, doFinish=False)
+        ok = True
+        if ok:
+            cmd.finish()
 
     def genVisitKeys(self, cmd):
         """Generate MHS keys based on confguration and status.
@@ -206,6 +243,15 @@ class LampsCmd(object):
 
         cmd.inform(f'lampRequestMask={",".join(mask)}')
         cmd.inform(f'lampRequestTimes={",".join(times)}')
+
+    def reqstat(self, cmd, doFinish=True):
+        for lampName in self.piLampNames:
+            request = self.request.get(lampName, 0.0)
+            keyName = self.keyLampNames[lampName]
+            state = "on" if request > 0 else "off"
+            cmd.inform(f'{keyName}State={state},{request:0.2f}')
+        if doFinish:
+            cmd.finish()
 
     def status(self, cmd):
         """Get current lamp status."""
