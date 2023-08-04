@@ -1,3 +1,4 @@
+import re
 import time
 
 import opscore.protocols.keys as keys
@@ -19,6 +20,7 @@ class LampsCmd(object):
             ('prepare', '[<argon>] [<hgcd>] [<krypton>] [<neon>] [<xenon>] [<halogen>]', self.prepare),
             ('go', '[<delay>] [@noWait]', self.go),
             ('stop', '', self.stop),
+            ('halt', '', self.halt),
             ('status', '', self.status),
             ('allstat', '', self.allstat),
             ('waitForReadySignal', '', self.waitForReadySignal),
@@ -38,6 +40,12 @@ class LampsCmd(object):
 
         self.lampNames = ('neon', 'argon', 'krypton', 'xenon', 'hgcd', 'halogen')
         self.piLampNames = ('neon', 'argon', 'krypton', 'xenon', 'hgcd', 'cont')
+        self.keyLampNames = dict(neon='Ne',
+                                 argon='Ar',
+                                 krypton='Kr',
+                                 xenon='Xe',
+                                 hgcd='HgCd',
+                                 cont='Cont')
 
         self.request = {}
 
@@ -78,10 +86,8 @@ class LampsCmd(object):
                 request[name] = val
                 maxtime = max(maxtime, val)
         self.requestTime = maxtime
-        self.request = {}
-        self.genVisitKeys(cmd)
-
         self.request = request
+        self.genVisitKeys(cmd)
 
         if len(lamps) == 0:
             cmd.fail('text="at least one lamp must be specified"')
@@ -91,6 +97,7 @@ class LampsCmd(object):
         ret = self.pi.lampsCmd(setupCmd)
 
         self.genStatusKey(cmd, *self._getStatus(cmd))
+        self.reqstat(cmd, doFinish=False)
         cmd.finish()
 
     def genStatusKey(self, cmd, running, ready, cooling):
@@ -110,22 +117,29 @@ class LampsCmd(object):
         return running, ready, cooling
 
     def waitForReadySignal(self, cmd, doFinish=True):
-        maxtime = 2
+        maxtime = 5
+        maxWaitForRunningTime = 1
+        loopTime = 0.2
+
         if 'hgcd' in self.request:
-            maxtime = 130
+            maxtime = 190
 
         lastRunning = lastReady = lastCooling = None
         startTime = time.time()
         while True:
             running, ready, cooling = self._getStatus(cmd)
+            now = time.time()
             if running != lastRunning or ready != lastReady or cooling != lastCooling:
                 self.genStatusKey(cmd, running, ready, cooling)
                 lastRunning = running
                 lastReady = ready
                 lastCooling = cooling
             if not running:
-                cmd.fail('text="lamps are not configured"')
-                return
+                if now - startTime > maxWaitForRunningTime:
+                    cmd.fail('text="lamps are not configured"')
+                    return
+                else:
+                    cmd.warn('text="lamps are not configured, but checking again...."')
             if ready:
                 break
 
@@ -137,10 +151,33 @@ class LampsCmd(object):
                 self.genVisitKeys(cmd)
                 return
 
-            time.sleep(0.2)
+            time.sleep(loopTime)
 
         if doFinish:
             cmd.finish()
+
+    def waitForFinishedSignal(self, cmd):
+        maxtime = 5
+        startTime = time.time()
+        while True:
+            running, ready, cooling = self._getStatus(cmd)
+            cmd.debug(f'text="running, ready, cooling = {running}, {ready}, {cooling}"')
+            if not running:
+                return True
+
+            now = time.time()
+            if now - startTime > maxtime:
+                cmd.fail(f'text="lamps did not turn off in {maxtime} seconds; will try to force things off."')
+                self.request = {}
+                self.pi.lampsCmd('stop')
+                self.genVisitKeys(cmd)
+                return False
+
+            time.sleep(0.5)
+
+    def halt(self, cmd):
+        ret = self.pi.lampsCmd('stop')
+        self.stop(cmd)
 
     def stop(self, cmd):
         """Stop any lamp command, and turn off lamps. """
@@ -149,7 +186,8 @@ class LampsCmd(object):
         self.request = {}
         self.genStatusKey(cmd, *self._getStatus(cmd))
         self.genVisitKeys(cmd)
-        self.allstat(cmd, doFinish=False)
+        self.reqstat(cmd, doFinish=False)
+        # self.allstat(cmd, doFinish=False)
         cmd.finish()
 
     def go(self, cmd):
@@ -167,15 +205,21 @@ class LampsCmd(object):
         ret = self.pi.lampsCmd('go')
         self.genVisitKeys(cmd)
 
-        waitTime = self.requestTime + 5
+        waitTime = max(0, self.requestTime - 1)
+
         if noWait:
-            cmd.inform(f'text="lamps should be on; please wait {waitTime} to be safe."')
-        else:
+            cmd.finish(f'text="lamps should be on; please wait {waitTime} to be safe."')
+            return
+        elif waitTime > 0:
             cmd.inform(f'text="waiting {waitTime} for lamps to go out."')
             time.sleep(waitTime)
 
-        # self.allstat(cmd, doFinish=False)
-        cmd.finish()
+        #ok = self.waitForFinishedSignal(cmd)
+        time.sleep(3)
+        self.allstat(cmd, doFinish=False)
+        ok = True
+        if ok:
+            cmd.finish()
 
     def genVisitKeys(self, cmd):
         """Generate MHS keys based on confguration and status.
@@ -200,6 +244,15 @@ class LampsCmd(object):
         cmd.inform(f'lampRequestMask={",".join(mask)}')
         cmd.inform(f'lampRequestTimes={",".join(times)}')
 
+    def reqstat(self, cmd, doFinish=True):
+        for lampName in self.piLampNames:
+            request = self.request.get(lampName, 0.0)
+            keyName = self.keyLampNames[lampName]
+            state = "on" if request > 0 else "off"
+            cmd.inform(f'{keyName}State={state},{request:0.2f}')
+        if doFinish:
+            cmd.finish()
+
     def status(self, cmd):
         """Get current lamp status."""
 
@@ -209,58 +262,29 @@ class LampsCmd(object):
     def _allstat(self, cmd):
         """Fetch and parse fan speed and lamp output
 
-        200318:182439 Fans 0
-        Ne   off v=0.0283  vc=0.00
-        Ar   off v=0.0286  vc=0.00
-        Kr   off v=0.0286  vc=0.00
-        Xe   off v=0.0283  vc=0.00
-        Hg   off v=0.0287  vc=0.00
-        Cd   off v=0.0286  vc=0.00
-        Cont off v=0.0297  fs=0
+        2023-07-19T20:19:22   off off off off off off on    0.0281 0.0284 0.0284 0.0281 0.0286 0.0284 4.8005 NaN    0.00 0.00 0.00 0.00 0.00 0.00 1.45 NaN
 
+        neon argon krypton xenon hg  cd cont fans
         """
 
-        ret = self.pi.lampsCmd('allstat')
-        ret = ret.split('\n')
-        statusLines = []
-        statusDict = dict()
+        statNames = ('Ne','Ar','Kr','Xe','Hg','Cd','Cont')
+        statusDict = {}
 
-        for l in ret:
-            l = l.strip()
-            if not l:
-                continue
-            statusLines.append(l)
-            cmd.inform(f'text="allstat:{l}"')
+        ret = self.pi.lampsCmd('raw tail -1 /tmp/runlog.txt')
+        cmd.diag(f'text="received {ret}"')
+        ret = ret.strip()
 
-        try:
-            fansLine = statusLines[0]
-            udt, _, fans = fansLine.split()
-            statusDict['fans'] = fans
-        except Exception as e:
-            cmd.fail(f'text="did not get allstat output"')
-            return
+        ts, *parts = re.split('\s+', ret)
+        states = parts[:7]
+        vs = [float(p) for p in parts[7:15]]
+        vcs = [float(p) for p in parts[15:]]
 
-        for l in statusLines[1:]:
-            name, status, rawReading, reading = l.split()
-            _, rawReading = rawReading.split('=')
-            rawReading = float(rawReading)
-
-            readingName, reading = reading.split('=')
-            reading = float(reading)
-
-            statusDict[f'{name}_state'] = status
-            statusDict[f'{name}_raw'] = rawReading
-
-            if name == 'Cont':
-                if readingName == 'fs':
-                    statusDict['Cont_fanspeed'] = reading
-                    statusDict['Cont'] = -9999
-                else:
-                    statusDict['Cont_fanspeed'] = -9999
-                    statusDict['Cont'] = reading
-            else:
-                statusDict[name] = reading
-
+        for i, n in enumerate(statNames):
+            val = vs[i]
+            if val != val:
+                val = -9999.9
+            statusDict[n] = vs[i]
+            statusDict[n+"_state"] = states[i]
         return statusDict
 
     def allstat(self, cmd, doFinish=True):
