@@ -69,6 +69,11 @@ class LampsCmd(object):
             cmd.fail('text="halogen and hgcd cannot both be specified"')
             return
 
+        domeShutter = self.actor.models['gen2'].keyVarDict['domeShutter'].valueList[0]
+        if domeShutter != 'closed':
+            cmd.fail(f'text="dome shutter must be closed ({domeShutter}) to run lamps"')
+            return
+
         lamps = []
         request = {}
         maxtime = 0
@@ -195,6 +200,13 @@ class LampsCmd(object):
 
         if len(self.request) == 0:
             cmd.fail('text="No lamps requested"')
+            return
+
+        domeShutter = self.actor.models['gen2'].keyVarDict['domeShutter'].valueList[0]
+        if domeShutter != 'closed':
+            cmd.fail(f'text="dome shutter must be closed ({domeShutter})to run lamps"')
+            self.request = {}
+            self.requestTime = 0.0
             return
 
         cmdKeys = cmd.cmd.keywords
