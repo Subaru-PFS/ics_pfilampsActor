@@ -6,7 +6,7 @@ import actorcore.ICC
 class OurActor(actorcore.ICC.ICC):
     def __init__(self, name,
                  productName=None, configFile=None,
-                 modelNames=(),
+                 modelNames=('gen2'),
                  debugLevel=30):
 
         """ Setup an Actor instance. See help for actorcore.Actor for details. """
