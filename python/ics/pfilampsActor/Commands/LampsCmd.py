@@ -104,6 +104,7 @@ class LampsCmd(object):
 
         self.genStatusKey(cmd, *self._getStatus(cmd))
         self.reqstat(cmd, doFinish=False)
+        self.lampTimes(cmd, doFinish=False)
         cmd.finish()
 
     def genStatusKey(self, cmd, running, ready, cooling):
@@ -270,6 +271,7 @@ class LampsCmd(object):
         """Get current lamp status."""
 
         self.genStatusKey(cmd, *self._getStatus(cmd))
+        self.lampTimes(cmd, doFinish=False)
         cmd.finish()
 
     def _allstat(self, cmd):
@@ -306,14 +308,16 @@ class LampsCmd(object):
         statNames = ('Ne','Ar','Kr','Xe','Hg','Cd','Cont')
         for lamp in statNames:
             cmd.inform(f'{lamp}State={statDict[lamp+"_state"]},{statDict[lamp]}')
+        self.lampTimes(cmd, doFinish=False)
         if doFinish:
             cmd.finish()
 
-    def lampTimes(self, cmd):
+    def lampTimes(self, cmd, doFinish=True):
         """Fetch lamp on and off times."""
         ret = self.pi.lampsCmd('lampTimes')
         lines = ret.split('\n')
         for l in lines:
             cmd.inform(l)
-        cmd.finish()
+        if doFinish:
+            cmd.finish()
 
