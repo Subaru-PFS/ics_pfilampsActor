@@ -61,7 +61,47 @@ portstat () {
 
 # sets value ($2, 0 or 1) for channel $1 -- just a utility
 portset () {
-    cat $2 > $gpiosysdir/gpio${chport[$1]}/value
+    echo $2 > $gpiosysdir/gpio${chport[$1]}/value
+}
+
+# persist change time for lamps
+logstate () {
+    if [ $1 -lt 6 ] || [ $1 -eq 7 ]; then
+        name=${lampname[$1]}
+        timestr > $statefileDir/${name}_$1
+    fi
+}
+
+# make sure the state files exist and have semi-sane values.
+initStateFiles () {
+    for i in 1 2 3 4 5  7; do
+        logstate $i on
+        sleep 1
+        logstate $i off
+    done
+}
+
+# turn a port on and track lamp state changes
+portOn () {
+    onOff=`portstat $1`
+    if [ "$onOff" = "off" ]; then
+        portset $1 1
+        chval[$1]=1
+
+        logstate $1 on
+    fi
+}
+
+# turn a port off and track lamp state changes
+portOff () {
+    onOff=`portstat $1`
+    if [ "$onOff" = " on" ]; then
+        portset $1 0
+        chtime[$1]=0
+        chval[$1]=0
+
+        logstate $1 off
+    fi
 }
 
 # ******************* STATUS ***********************************************
@@ -142,10 +182,7 @@ allstatraw() {
 alloff () {
     for i in 1 2 3 4 5  7 8
     do
-        j=${chport[$i]}
-        echo 0 > $gpiosysdir/gpio$j/value
-        chtime[$i]=0
-        chval[$i]=0
+        portOff $1
     done
 }
 
@@ -278,7 +315,10 @@ firstinit() {
     rm -f $runningfile
     rm -f $testingfile
     rm -f $coolingfile
+
+    initStateFiles
     alloff
+
 }
 
 # NB!!!! These files must NEVER be executed in the lamps context,
@@ -448,7 +488,7 @@ _lamps () (
             return -1
         fi
         sleep 3                 # need to let some fan cap discharge
-        echo 1 > $gpiosysdir/gpio${chport[5]}/value
+        portOn 5
     
         elogstat "  Time=0"
         # warm up lamp -- quit after 2 minutes or val=0.6, whichever first
@@ -497,11 +537,13 @@ _lamps () (
     do
         if [ ${chtime[$i]} -gt 0 ]
         then
-            echo 1 > $gpiosysdir/gpio${chport[$i]}/value
+            # Use portset, not portOn/Off here, because we don't want to
+            # change the state of the lamp, just quickly read the ADC
+            portset $1 1
             sleep 0.5
             val=`adcread $i`
             thresh=${adcthresh[$i]}
-            echo 0 > $gpiosysdir/gpio${chport[$i]}/value
+            portset $1 0
 
             if compare "$val < $thresh"
             then
@@ -553,7 +595,7 @@ _lamps () (
     then
         # turn on the continuum lamp. 
         elogit "turning on cont" 
-        echo 1 > $gpiosysdir/gpio${chport[7]}/value
+        portOn 7
     fi
 
     # turn on the selected gas lamps
@@ -562,7 +604,7 @@ _lamps () (
         if [ ${chtime[$i]} -gt 0 ]
         then
             elogit "turning on lamp $i"
-            echo 1 > $gpiosysdir/gpio${chport[$i]}/value
+            portOn $1
         fi
     done
 
@@ -580,8 +622,7 @@ _lamps () (
             then
                 echon "Turning off lamp $i"
                 # turn off lamp and indicate not active
-                echo 0 > $gpiosysdir/gpio${chport[$i]}/value
-                chtime[$i]=0
+                portOff $1
             fi
         done
         sleep 1 # let lamps settle

@@ -65,4 +65,9 @@ export runningfile=/tmp/calibrunning
 export testingfile=/tmp/calibtesting
 export coolingfile=/tmp/calibcooling
 export coolingfile=/tmp/calibcooling
-export runlogfile=/tmp/runlog.txt
+
+export statefileDir=/tmp
+export runlogfile=$statefileDir/runlog.txt
+
+export lampchannel="1 2 3 4 5 7"
+export lampname=("lampname" neon argon krypton xenon hgcd _ cont _)

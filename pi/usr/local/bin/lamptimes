@@ -1,0 +1,10 @@
+source /usr/local/bin/calibhead
+
+for i in 1 2 3 4 5  7; do
+    name=${chname[$i]}
+    offTime=`cat $statusdir/${name}_off`
+    onTime=`cat $statusdir/${name}_on`
+    state=`portstat $i`
+
+    echo "$name=$state,$offTime,$onTime"
+done
