@@ -70,4 +70,4 @@ export statefileDir=/tmp
 export runlogfile=$statefileDir/runlog.txt
 
 export lampchannel="1 2 3 4 5 7"
-export lampname=("lampname" neon argon krypton xenon hgcd _ cont _)
+export lampname=("lampname" neon argon krypton xenon hgcd _ halogen _)

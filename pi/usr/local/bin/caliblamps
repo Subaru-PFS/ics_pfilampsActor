@@ -68,7 +68,7 @@ portset () {
 logstate () {
     if [ $1 -lt 6 ] || [ $1 -eq 7 ]; then
         name=${lampname[$1]}
-        timestr > $statefileDir/${name}_$1
+        timestr > $statefileDir/${name}_$2
     fi
 }
 
@@ -116,7 +116,8 @@ statline() {  # parameter is channel number
 # data for all channels
 
 timestr () {
-    date +"%Y-%m-%dT%H:%M:%S"
+    dstr=`date +"%Y-%m-%dT%H:%M:%S.%N"`
+    echo ${dstr:0:-6}
 }
 
 # this version solves the raw outputs for the raregaslamp for the real
@@ -539,11 +540,11 @@ _lamps () (
         then
             # Use portset, not portOn/Off here, because we don't want to
             # change the state of the lamp, just quickly read the ADC
-            portset $1 1
+            portset $i 1
             sleep 0.5
             val=`adcread $i`
             thresh=${adcthresh[$i]}
-            portset $1 0
+            portset $i 0
 
             if compare "$val < $thresh"
             then
@@ -604,7 +605,7 @@ _lamps () (
         if [ ${chtime[$i]} -gt 0 ]
         then
             elogit "turning on lamp $i"
-            portOn $1
+            portOn $i
         fi
     done
 
@@ -622,7 +623,7 @@ _lamps () (
             then
                 echon "Turning off lamp $i"
                 # turn off lamp and indicate not active
-                portOff $1
+                portOff $i
             fi
         done
         sleep 1 # let lamps settle

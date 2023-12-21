@@ -23,6 +23,7 @@ class LampsCmd(object):
             ('halt', '', self.halt),
             ('status', '', self.status),
             ('allstat', '', self.allstat),
+            ('lamptimes', '', self.lampTimes),
             ('waitForReadySignal', '', self.waitForReadySignal),
             ('pi', '@raw', self.raw),
         ]
@@ -307,3 +308,12 @@ class LampsCmd(object):
             cmd.inform(f'{lamp}State={statDict[lamp+"_state"]},{statDict[lamp]}')
         if doFinish:
             cmd.finish()
+
+    def lampTimes(self, cmd):
+        """Fetch lamp on and off times."""
+        ret = self.pi.lampsCmd('lampTimes')
+        lines = ret.split('\n')
+        for l in lines:
+            cmd.inform(l)
+        cmd.finish()
+
