@@ -94,6 +94,11 @@ class CaliblampState:
         ret = self.cmd('tail -1 /tmp/runlog.txt')
         return ret
 
+    def lampTimes(self):
+        """Return the off and on times for all lamps."""
+        ret = self.cmd('lamptimes')
+        return ret
+    
 class CaliblampRequestHandler(socketserver.BaseRequestHandler):
     def setup(self):
         self.caliblampState = self.server.caliblampState
@@ -139,6 +144,8 @@ class CaliblampRequestHandler(socketserver.BaseRequestHandler):
             ret = self.caliblampState.allstat()
         elif cmdName == 'runstat':
             ret = self.caliblampState.runstat()
+        elif cmdName == 'lampTimes':
+            ret = self.caliblampState.lampTimes()
         elif cmdName == 'raw':
             _, cmdStr = rawCmd.split(None, 1)
             logger.info("raw: %s", cmdStr)
