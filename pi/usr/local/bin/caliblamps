@@ -183,7 +183,7 @@ allstatraw() {
 alloff () {
     for i in 1 2 3 4 5  7 8
     do
-        portOff $1
+        portOff $i
     done
 }
 
@@ -317,9 +317,9 @@ firstinit() {
     rm -f $testingfile
     rm -f $coolingfile
 
+    touch $runlogfile
     initStateFiles
     alloff
-
 }
 
 # NB!!!! These files must NEVER be executed in the lamps context,
@@ -668,3 +668,11 @@ lamps () {
         export lamppid # for external consumption only
     fi
 }
+
+# One time initialization
+if test ! -r /tmp/calibinitdone
+then
+    firstinit
+    touch /tmp/calibinitdone
+fi
+
