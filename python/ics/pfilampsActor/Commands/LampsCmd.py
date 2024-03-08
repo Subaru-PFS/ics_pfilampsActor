@@ -160,11 +160,12 @@ class LampsCmd(object):
 
             time.sleep(loopTime)
 
+        self.allstat(cmd, doFinish=False)
         if doFinish:
             cmd.finish()
 
     def waitForFinishedSignal(self, cmd):
-        maxtime = 5
+        maxtime = 15
         startTime = time.time()
         while True:
             running, ready, cooling = self._getStatus(cmd)
@@ -181,6 +182,7 @@ class LampsCmd(object):
                 return False
 
             time.sleep(0.5)
+        self.allstat(cmd, doFinish=False)
 
     def halt(self, cmd):
         ret = self.pi.lampsCmd('stop')
@@ -194,7 +196,7 @@ class LampsCmd(object):
         self.genStatusKey(cmd, *self._getStatus(cmd))
         self.genVisitKeys(cmd)
         self.reqstat(cmd, doFinish=False)
-        # self.allstat(cmd, doFinish=False)
+        self.allstat(cmd, doFinish=False)
         cmd.finish()
 
     def go(self, cmd):
@@ -219,7 +221,7 @@ class LampsCmd(object):
         ret = self.pi.lampsCmd('go')
         self.genVisitKeys(cmd)
 
-        waitTime = max(0, self.requestTime - 1)
+        waitTime = max(0, self.requestTime)
 
         if noWait:
             cmd.finish(f'text="lamps should be on; please wait {waitTime} to be safe."')
@@ -228,8 +230,7 @@ class LampsCmd(object):
             cmd.inform(f'text="waiting {waitTime} for lamps to go out."')
             time.sleep(waitTime)
 
-        #ok = self.waitForFinishedSignal(cmd)
-        time.sleep(3)
+        ok = self.waitForFinishedSignal(cmd)
         self.allstat(cmd, doFinish=False)
         ok = True
         if ok:
