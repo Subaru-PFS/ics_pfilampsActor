@@ -163,6 +163,9 @@ allstat() {
     echo
 
     echo "$ts  $states   $vs   $vcs" >> $runlogfile
+    if [ -n "$activerunlogfile" ]; then
+        echo "$ts  $states   $vs   $vcs" >> $activerunlogfile
+    fi
 }
 
 # outputs raw voltages only, NOT solved for input
@@ -185,6 +188,7 @@ alloff () {
     do
         portOff $i
     done
+    stopActiveRun
 }
 
 # ****************** LOGGING ***********************************************
@@ -258,6 +262,16 @@ elogstat () {
     else
         allstat $1 | tee -a  $caliblog
     fi
+}
+
+# Manage a per-run log, which gets allstat output between the 'go' and the end.
+startActiveRun () {
+    activerunlogfile="/tmp/runlog_active"
+    > $activerunlogfile
+}
+
+stopActiveRun () {
+    activerunlogfile=""
 }
 
 # ****************** POSTCOOLING ****************************************
@@ -492,6 +506,7 @@ _lamps () (
         portOn 5
     
         elogstat "  Time=0"
+        startActiveRun
         # warm up lamp -- quit after 2 minutes or val=0.6, whichever first
         for i in `seq 1 24`
         do
@@ -590,7 +605,9 @@ _lamps () (
     # now start lamp timing
     timestart=`date -u +%s`
     iter=0
-
+    startActiveRun
+    allstat
+    
     # Turn on continuum
     if $contflg
     then
@@ -609,11 +626,10 @@ _lamps () (
         fi
     done
 
+    allstat
     elogit "Going `udtstr`"
-    oldtime=-1
     iter=0
-    firstime=true
-
+    loopTime=1
     while true
     do
         timenow=$((`date -u +%s` - $timestart ))
@@ -627,21 +643,7 @@ _lamps () (
             fi
         done
         sleep 1 # let lamps settle
-        if [ $(($timenow % 2)) = 0 ]
-        then
-            if [ "$oldtime" != $timenow ] # first time integer seconds change
-            then
-                # echon "iter=$iter oldtime,timenow=$oldtime $timenow"
-                if $firstime
-                then
-                    allstat "time=$timenow"
-                    firstime=false
-                else
-                    elogstat "time=$timenow"
-                fi
-                oldtime=$timenow
-            fi
-        fi
+        allstat "time=$timenow"
         if [ $timenow -gt $longtime ]
         then
             break
@@ -651,6 +653,7 @@ _lamps () (
     # clean up
     alloff
     elogstat
+    stopActiveRun
     rm -rf $runningfile
     if $coolflg
     then
