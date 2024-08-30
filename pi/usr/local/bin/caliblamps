@@ -643,7 +643,7 @@ _lamps () (
             fi
         done
         sleep 1 # let lamps settle
-        allstat "time=$timenow"
+        elogstat "time=$timenow"
         if [ $timenow -gt $longtime ]
         then
             break
