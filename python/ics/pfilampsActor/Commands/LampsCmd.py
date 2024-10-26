@@ -54,6 +54,13 @@ class LampsCmd(object):
     def pi(self):
         return self.actor.controllers['lamps_pi']
 
+    def fetchGen2State(self, cmd):
+        """Quickly update gen2 status (dome shutter and screen). """
+        
+        self.actor.cmdr.call(actor='gen2', cmdStr='updateTelStatus', timeLim=2)
+        if cmdVar.didFail:
+            cmd.warn('text="failed to update gen2 status; ignoring it"')
+
     def raw(self, cmd):
         """ Send a raw command to the controller. """
 
@@ -70,6 +77,7 @@ class LampsCmd(object):
             cmd.fail('text="halogen and hgcd cannot both be specified"')
             return
 
+        self.fetchGen2State(cmd)
         domeShutter = self.actor.models['gen2'].keyVarDict['domeShutter'].valueList[0]
         if domeShutter != 'closed':
             cmd.fail(f'text="dome shutter must be closed ({domeShutter}) to run lamps"')
@@ -206,6 +214,7 @@ class LampsCmd(object):
             cmd.fail('text="No lamps requested"')
             return
 
+        self.fetchGen2State(cmd)
         domeShutter = self.actor.models['gen2'].keyVarDict['domeShutter'].valueList[0]
         if domeShutter != 'closed':
             cmd.fail(f'text="dome shutter must be closed ({domeShutter})to run lamps"')
