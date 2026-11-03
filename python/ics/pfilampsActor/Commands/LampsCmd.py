@@ -319,7 +319,7 @@ class LampsCmd(object):
         cmd.diag(f'text="received {ret}"')
         ret = ret.strip()
 
-        ts, *parts = re.split('\s+', ret)
+        ts, *parts = re.split(r'\s+', ret)
         states = parts[:7]
         vs = [float(p) for p in parts[7:15]]
         vcs = [float(p) for p in parts[15:]]
