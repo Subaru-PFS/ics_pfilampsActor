@@ -57,7 +57,7 @@ class LampsCmd(object):
     def fetchGen2State(self, cmd):
         """Quickly update gen2 status (dome shutter and screen). """
         
-        self.actor.cmdr.call(actor='gen2', cmdStr='updateTelStatus', timeLim=2)
+        cmdVar = self.actor.cmdr.call(actor='gen2', cmdStr='updateTelStatus', timeLim=2)
         if cmdVar.didFail:
             cmd.warn('text="failed to update gen2 status; ignoring it"')
 
