@@ -18,6 +18,7 @@ class CaliblampState:
     RUNNING_FILE = "/tmp/calibrunning"
     READY_FILE = "/tmp/calibready"
     COOLING_FILE = "/tmp/calibcooling"
+    LAMPS_OUTPUT_FILE = "/tmp/lampsoutput.txt"
 
     lampNames = {'neon', 'argon', 'krypton', 'xenon',
                  'hgcd', 'cont'}
@@ -80,11 +81,38 @@ class CaliblampState:
         self.cmd('go')
         return self.status()
 
-    def setup(self, lamps):
-        """ Configure the lamp sequence. """
+    def readRunningPid(self):
+        try:
+            with open(self.RUNNING_FILE) as f:
+                return int(f.read().strip())
+        except (OSError, ValueError):
+            return None
 
-        self.cmd('lamps %s ' % (lamps))
-        return self.status()
+    def setup(self, lamps, timeout=10.0):
+        """ Configure the lamp sequence.
+
+        The lamps shell function starts the sequence in the background,
+        and that process (and its cooling child) runs for minutes. So do
+        not capture its output -- that would block until it exits -- but
+        wait for the new run to write its PID into the running file.
+        """
+
+        oldPid = self.readRunningPid()
+        cmdStr = 'lamps %s' % (lamps)
+        with open(self.LAMPS_OUTPUT_FILE, 'ab') as out:
+            subprocess.run(["/bin/bash", "-c", "source /usr/local/bin/caliblamps && %s" % (cmdStr)],
+                           stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT)
+
+        startTime = time.time()
+        while time.time() - startTime < timeout:
+            pid = self.readRunningPid()
+            if pid is not None and pid != oldPid:
+                logger.info('command: %s started pid %d after %0.2fs', cmdStr, pid, time.time() - startTime)
+                return self.status()
+            time.sleep(0.1)
+
+        logger.warning('command: %s did not start within %0.1fs', cmdStr, timeout)
+        return 'ERROR : lamps did not start within %0.1f seconds' % (timeout)
 
     def allstat(self):
         ret = self.cmd('allstat')

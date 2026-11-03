@@ -108,7 +108,14 @@ class LampsCmd(object):
             return
 
         setupCmd = f'setup {" ".join(lamps)}'
-        ret = self.pi.lampsCmd(setupCmd)
+        # The pi waits (up to 10s) for the lamp sequence to start.
+        ret = self.pi.lampsCmd(setupCmd, timelim=15.0)
+        if not ret.startswith('OK'):
+            self.request = {}
+            self.requestTime = 0
+            self.genVisitKeys(cmd)
+            cmd.fail('text=%s' % (qstr(f'lamp setup failed: {ret!r}')))
+            return
 
         self.genStatusKey(cmd, *self._getStatus(cmd))
         self.reqstat(cmd, doFinish=False)
