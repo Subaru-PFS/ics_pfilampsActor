@@ -132,8 +132,10 @@ class LampsCmd(object):
         return running, ready, cooling
 
     def waitForReadySignal(self, cmd, doFinish=True):
-        maxtime = 5
-        maxWaitForRunningTime = 1
+        # The pi's setup is asynchronous: normally running appears ~2s and
+        # ready ~5s after setup, but we have seen ~5s and ~8.5s.
+        maxtime = 15
+        maxWaitForRunningTime = 10
         loopTime = 0.2
 
         if 'hgcd' in self.request:
