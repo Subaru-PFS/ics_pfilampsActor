@@ -194,6 +194,22 @@ class LampsCmd(object):
             time.sleep(0.5)
         self.allstat(cmd, doFinish=False)
 
+    def waitForRunningSignal(self, cmd):
+        maxtime = 3
+        startTime = time.time()
+        while True:
+            running, ready, cooling = self._getStatus(cmd)
+            cmd.debug(f'text="running, ready, cooling = {running}, {ready}, {cooling}"')
+            if running:
+                return True
+
+            now = time.time()
+            if now - startTime > maxtime:
+                cmd.warn(f'text="lamps did not turn on in {maxtime} seconds."')
+                return False
+
+            time.sleep(0.5)
+
     def halt(self, cmd):
         ret = self.pi.lampsCmd('stop')
         self.stop(cmd)
@@ -228,9 +244,11 @@ class LampsCmd(object):
         noWait = 'noWait' in cmdKeys
 
         self.waitForReadySignal(cmd, doFinish=False)
-
+        cmd.inform('text="lamps ready, turning them on"')
         ret = self.pi.lampsCmd('go')
         self.genVisitKeys(cmd)
+        self.waitForRunningSignal(cmd)
+        self.allstat(cmd, doFinish=False)
 
         waitTime = max(0, self.requestTime)
 
