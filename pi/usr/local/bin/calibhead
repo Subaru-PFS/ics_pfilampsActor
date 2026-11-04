@@ -68,6 +68,9 @@ export coolingfile=/tmp/calibcooling
 
 export statefileDir=/tmp
 export runlogfile=$statefileDir/runlog.txt
+# Daily copies of the runlog go here, but only if the directory exists
+# (i.e. the USB disk is mounted and the directory has been created on it).
+export runlogArchiveDir=/scr0/logs/runlogs
 
 export lampchannel="1 2 3 4 5 7"
 export lampname=("lampname" neon argon krypton xenon hgcd _ halogen _)

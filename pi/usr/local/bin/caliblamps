@@ -163,6 +163,9 @@ allstat() {
     echo
 
     echo "$ts  $states   $vs   $vcs" >> $runlogfile
+    if [ -d "$runlogArchiveDir" ]; then
+        echo "$ts  $states   $vs   $vcs" >> $runlogArchiveDir/runlog.${ts:0:10}.txt
+    fi
     if [ -n "$activerunlogfile" ]; then
         echo "$ts  $states   $vs   $vcs" >> $activerunlogfile
     fi
