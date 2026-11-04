@@ -337,6 +337,8 @@ firstinit() {
     touch $runlogfile
     initStateFiles
     alloff
+    # Give the runlog a valid line, which the actor's allstat reads.
+    allstat > /dev/null
 }
 
 # NB!!!! These files must NEVER be executed in the lamps context,

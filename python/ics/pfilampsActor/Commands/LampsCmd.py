@@ -326,7 +326,18 @@ class LampsCmd(object):
         cmd.diag(f'text="received {ret}"')
         ret = ret.strip()
 
+        # After a pi reboot the runlog is empty until something runs
+        # allstat, which appends a line to it.
+        if not ret:
+            cmd.inform('text="runlog is empty; asking pi for a fresh allstat"')
+            self.pi.lampsCmd('allstat', timelim=5.0)
+            ret = self.pi.lampsCmd('raw tail -1 /tmp/runlog.txt')
+            cmd.diag(f'text="received {ret}"')
+            ret = ret.strip()
+
         ts, *parts = re.split(r'\s+', ret)
+        if len(parts) != 23:
+            raise RuntimeError(f'unexpected runlog line: {ret!r}')
         states = parts[:7]
         vs = [float(p) for p in parts[7:15]]
         vcs = [float(p) for p in parts[15:]]
