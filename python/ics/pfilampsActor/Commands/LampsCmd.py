@@ -57,7 +57,7 @@ class LampsCmd(object):
     def fetchGen2State(self, cmd):
         """Quickly update gen2 status (dome shutter and screen). """
         
-        self.actor.cmdr.call(actor='gen2', cmdStr='updateTelStatus', timeLim=2)
+        cmdVar = self.actor.cmdr.call(actor='gen2', cmdStr='updateTelStatus', timeLim=2)
         if cmdVar.didFail:
             cmd.warn('text="failed to update gen2 status; ignoring it"')
 
@@ -108,7 +108,14 @@ class LampsCmd(object):
             return
 
         setupCmd = f'setup {" ".join(lamps)}'
-        ret = self.pi.lampsCmd(setupCmd)
+        # The pi waits (up to 10s) for the lamp sequence to start.
+        ret = self.pi.lampsCmd(setupCmd, timelim=15.0)
+        if not ret.startswith('OK'):
+            self.request = {}
+            self.requestTime = 0
+            self.genVisitKeys(cmd)
+            cmd.fail('text=%s' % (qstr(f'lamp setup failed: {ret!r}')))
+            return
 
         self.genStatusKey(cmd, *self._getStatus(cmd))
         self.reqstat(cmd, doFinish=False)
@@ -132,8 +139,10 @@ class LampsCmd(object):
         return running, ready, cooling
 
     def waitForReadySignal(self, cmd, doFinish=True):
-        maxtime = 5
-        maxWaitForRunningTime = 1
+        # The pi's setup is asynchronous: normally running appears ~2s and
+        # ready ~5s after setup, but we have seen ~5s and ~8.5s.
+        maxtime = 15
+        maxWaitForRunningTime = 10
         loopTime = 0.2
 
         if 'hgcd' in self.request:
@@ -192,6 +201,22 @@ class LampsCmd(object):
             time.sleep(0.5)
         self.allstat(cmd, doFinish=False)
 
+    def waitForRunningSignal(self, cmd):
+        maxtime = 3
+        startTime = time.time()
+        while True:
+            running, ready, cooling = self._getStatus(cmd)
+            cmd.debug(f'text="running, ready, cooling = {running}, {ready}, {cooling}"')
+            if running:
+                return True
+
+            now = time.time()
+            if now - startTime > maxtime:
+                cmd.warn(f'text="lamps did not turn on in {maxtime} seconds."')
+                return False
+
+            time.sleep(0.5)
+
     def halt(self, cmd):
         ret = self.pi.lampsCmd('stop')
         self.stop(cmd)
@@ -226,9 +251,11 @@ class LampsCmd(object):
         noWait = 'noWait' in cmdKeys
 
         self.waitForReadySignal(cmd, doFinish=False)
-
+        cmd.inform('text="lamps ready, turning them on"')
         ret = self.pi.lampsCmd('go')
         self.genVisitKeys(cmd)
+        self.waitForRunningSignal(cmd)
+        self.allstat(cmd, doFinish=False)
 
         waitTime = max(0, self.requestTime)
 
@@ -299,7 +326,7 @@ class LampsCmd(object):
         cmd.diag(f'text="received {ret}"')
         ret = ret.strip()
 
-        ts, *parts = re.split('\s+', ret)
+        ts, *parts = re.split(r'\s+', ret)
         states = parts[:7]
         vs = [float(p) for p in parts[7:15]]
         vcs = [float(p) for p in parts[15:]]
